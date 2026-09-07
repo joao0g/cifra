@@ -11,3 +11,5 @@ outputs/
 cifra.zip
 __pycache__/
 *.tsbuildinfo
+
+.vercel
