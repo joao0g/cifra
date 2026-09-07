@@ -7,6 +7,9 @@ outputs/
 *.log
 .DS_Store
 
+# segredos locais (nunca commitar: EULEN_API_TOKEN, EULEN_WEBHOOK_SECRET)
+.env*.local
+
 # archives / caches
 cifra.zip
 __pycache__/
