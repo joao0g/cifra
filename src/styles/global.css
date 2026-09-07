@@ -1,0 +1,4335 @@
+/* ---------- fonte ---------- */
+/* DM Sans (Google Fonts) auto-hospedada: variable wght 100..1000, opsz 9..40.
+   Sem request externo, entao a fonte tambem entra no precache do service worker. */
+@font-face {
+  font-family: 'DM Sans';
+  src: url('../assets/fonts/dm-sans-latin-ext.woff2') format('woff2');
+  font-weight: 100 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('../assets/fonts/dm-sans-latin.woff2') format('woff2');
+  font-weight: 100 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Manrope (Google Fonts) auto-hospedada: variable wght 200..800.
+   Sem request externo, entra no precache do service worker. */
+@font-face {
+  font-family: 'Manrope';
+  src: url('../assets/fonts/manrope-latin-ext.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Manrope';
+  src: url('../assets/fonts/manrope-latin.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Google Sans Flex (Google Fonts) auto-hospedada: variable wght 1..1000.
+   Uso exclusivo nos números do saldo; mesmo esquema das demais, sem
+   request externo, entra no precache do service worker. */
+@font-face {
+  font-family: 'Google Sans Flex';
+  src: url('../assets/fonts/google-sans-flex-latin-ext.woff2') format('woff2');
+  font-weight: 1 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Google Sans Flex';
+  src: url('../assets/fonts/google-sans-flex-latin.woff2') format('woff2');
+  font-weight: 1 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------- tokens ---------- */
+:root {
+  --bg: #000000;
+  --fg: #ffffff;
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  /* Valores iniciais; o script publica os medidos. */
+  --app-height: 100vh;
+  --app-width: 100vw;
+  color-scheme: dark;
+  /* A área dos insets é pintada com o background do html (fix oficial da WebKit
+     pra cobrir gaps do sistema). */
+  background: var(--bg);
+}
+
+/* ---------- reset ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  /* Ordem intencional: vh -> fill-available (iOS antigo) -> dvh (reage à barra do Safari) */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* app-like behaviour: no pull-to-refresh, no rubber-band scroll, no tap flash */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Shell do app fixo na tela: a geometria de position:fixed nao usa unidades de
+   viewport, entao fica imune aos bugs de innerHeight/dvh do iOS standalone
+   (cold start, iOS 26.x e o gap de 34px do bug 79902310). Scroll fica em
+   containers internos, nunca no body. */
+#root {
+  position: fixed;
+  inset: 0;
+}
+
+/* Âncora ativa (viewport.ts publica html[anchored] no standalone com o webview
+   menor que a tela física): html/body/#root recebem a altura física da tela em
+   px. O documento fica maior que o webview encolhido — essa sobra é o que força
+   o WebKit a re-hospedar o webview no tamanho real, sem gesto do usuário. */
+html[anchored] body {
+  overflow: hidden;
+}
+
+/* iOS 13–15.3 não conhece dvh: body segue a altura medida pelo script
+   (src/lib/viewport.ts); #root e .splash não precisam - são fixed/100% do shell. */
+@supports not (height: 100dvh) {
+  body {
+    min-height: var(--app-height, 100vh);
+  }
+}
+
+/* <html display="standalone"> quando aberta pela Tela de Início (sem barra do Safari);
+   display="browser" numa aba comum. Gancho para ajustes futuros de layout. */
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+input,
+textarea {
+  font: inherit;
+  /* form fields must stay selectable/editable on mobile */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ---------- splash ---------- */
+/* 100% do shell (#root, fixed inset:0) - nao depende de unidades de viewport. */
+.splash {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding:
+    calc(var(--safe-top) + 16px)
+    calc(var(--safe-right) + 16px)
+    calc(var(--safe-bottom) + 16px)
+    calc(var(--safe-left) + 16px);
+  background: var(--bg);
+}
+
+/* Loader: a marca sendo enchida por agua. A onda e um path SVG recortado pela
+   silhueta do glyph (src/assets/logo-mask.png), entao a linha d'agua so existe
+   dentro do C. O ghost embaixo e o logo completo, quase apagado. */
+.loader {
+  position: relative;
+  width: clamp(132px, 34vw, 184px);
+  aspect-ratio: 1 / 1;
+  /* Um ciclo e so: enche (0-68%), segura cheia (68-78%), some (78-94%).
+     forwards segura o fim apagado - a logo NAO volta depois de sumir;
+     em seguida o App.tsx entrega a tela de boas-vindas. */
+  animation: loader-cycle 3.8s ease-in-out 1 forwards;
+}
+
+.loader__ghost {
+  width: 100%;
+  height: 100%;
+  opacity: 0.16;
+}
+
+.loader__waves {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-mask: url('../assets/logo-mask.png') center / 100% 100% no-repeat;
+  mask: url('../assets/logo-mask.png') center / 100% 100% no-repeat;
+}
+
+.loader__wave {
+  fill: var(--fg);
+}
+
+.loader__wave--back {
+  opacity: 0.45;
+  animation: liquid-scroll 2.6s linear infinite;
+  animation-delay: -0.8s;
+}
+
+.loader__wave--front {
+  animation: liquid-scroll 1.6s linear infinite;
+}
+
+.loader__bob {
+  animation: liquid-bob 3.4s ease-in-out infinite alternate;
+}
+
+/* Enche a marca: a superficie parte ~6px abaixo do glyph e para 2px acima do
+   topo dele. Calcada no bbox medido do mask (y 11.5..84.5 no viewBox 0..100). */
+.loader__rise {
+  animation: liquid-rise 3.8s cubic-bezier(0.3, 0, 0.4, 1) 1 forwards;
+}
+
+@keyframes liquid-scroll {
+  to {
+    transform: translateX(-50px);
+  }
+}
+
+@keyframes liquid-bob {
+  from {
+    transform: translateY(-4px);
+  }
+  to {
+    transform: translateY(5px);
+  }
+}
+
+@keyframes liquid-rise {
+  0% {
+    transform: translateY(92px);
+  }
+  68% {
+    transform: translateY(-2px);
+  }
+  100% {
+    transform: translateY(-2px);
+  }
+}
+
+/* A logo inteira some em opacidade quando enche e o ciclo recomeca. */
+@keyframes loader-cycle {
+  0% {
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  78% {
+    opacity: 1;
+  }
+  94% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------- splash -> welcome ---------- */
+/* Troca seca: o App desmonta o splash na hora, sem slide nem fade. */
+
+/* ---------- welcome (referencia: splash do Proton Pass) ---------- */
+/* absolute (nao fixed): preenche o shell #root, inclusive a extensao do iOS 26. */
+.welcome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding:
+    calc(var(--safe-top) + 16px)
+    calc(var(--safe-right) + 24px)
+    calc(var(--safe-bottom) + 20px)
+    calc(var(--safe-left) + 24px);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.welcome__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Glifo gigante da marca, quase apagado, ancorado no topo como no Proton Pass. */
+.welcome__glyph {
+  position: absolute;
+  top: 6%;
+  left: 50%;
+  width: min(115vw, 640px);
+  transform: translateX(-50%);
+  opacity: 0.16;
+  -webkit-mask-image: radial-gradient(80% 62% at 50% 40%, #000 28%, transparent 95%);
+  mask-image: radial-gradient(80% 62% at 50% 40%, #000 28%, transparent 95%);
+  filter: drop-shadow(0 18px 50px rgba(255, 255, 255, 0.12));
+}
+
+/* Grade fina e o brilho suave entrando por cima. */
+.welcome__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(75% 60% at 50% 38%, #000 28%, transparent 88%);
+  mask-image: radial-gradient(75% 60% at 50% 38%, #000 28%, transparent 88%);
+}
+
+.welcome__glow {
+  position: absolute;
+  top: -22%;
+  left: 50%;
+  width: 150%;
+  height: 70%;
+  transform: translateX(-50%);
+  background:
+    radial-gradient(50% 60% at 50% 55%, rgba(255, 255, 255, 0.2), transparent 72%),
+    radial-gradient(85% 95% at 50% 30%, rgba(255, 255, 255, 0.06), transparent 82%);
+}
+
+.welcome__body {
+  position: relative;
+  margin-top: auto;
+  /* Cola o conjunto (titulo + botao) na base da tela. */
+  margin-bottom: 2px;
+}
+
+.welcome__title {
+  margin: 0;
+  font-size: clamp(34px, 10.5vw, 44px);
+  line-height: 1.14;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+/* Dois tons: parte apagada, parte branca cheia, uma frase por linha. */
+.welcome__title span {
+  display: block;
+}
+
+.welcome__title-dim {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.welcome__title-hi {
+  color: var(--fg);
+}
+
+.welcome__cta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  /* Pilha: os pills seguintes ficam a 10px um do outro. */
+  margin-top: 10px;
+  padding: 17px 24px;
+  border-radius: 999px;
+  /* Borda transparente no base: os tres pills ficam com a mesma altura. */
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, #ffffff, #d9d9de);
+  color: #0a0a0a;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Respiro maior só entre o titulo e o primeiro pill. */
+.welcome__title + .welcome__cta {
+  margin-top: 26px;
+}
+
+/* Pill translucido: saida de recuperacao, um degrau abaixo do primario.
+   Vidro em CSS puro (sem componente): funciona em WebKit e Firefox. */
+.welcome__cta--ghost {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 45%),
+    rgba(255, 255, 255, 0.07);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.4);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.45),
+    inset 0 0 14px 0 rgba(255, 255, 255, 0.05),
+    0 10px 28px rgba(0, 0, 0, 0.35),
+    0 0 26px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Casca do pill de vidro: da o tamanho ao GlassSurface (que e absoluto). */
+.welcome__cta-shell {
+  position: relative;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.welcome__cta-shell > .welcome__cta {
+  z-index: 1;
+  margin-top: 0;
+}
+
+/* O vidro e decorativo e fica atras do botao: o toque tem de chegar ao botao.
+   Dois classes porque GlassSurface.css carrega depois deste arquivo, e porque
+   as sombras do componente sao calibradas para cartao claro — aqui o fundo e
+   preto, entao a superficie ganha profundidade por conta propria: brilho mais
+   forte no topo, fio de borda e sombra de elevacao. */
+.welcome__cta-shell .welcome__glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    hsl(0 0% 100% / calc(var(--glass-frost, 0) + 0.1)),
+    hsl(0 0% 100% / var(--glass-frost, 0))
+  );
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* ---------- instalacao (barreira do PWA) ---------- */
+.install {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding:
+    calc(var(--safe-top) + 24px)
+    calc(var(--safe-right) + 32px)
+    calc(var(--safe-bottom) + 32px)
+    calc(var(--safe-left) + 32px);
+  background: #000;
+  text-align: center;
+}
+
+.install__logo {
+  width: clamp(88px, 24vw, 120px);
+  aspect-ratio: 1 / 1;
+}
+
+.install__title {
+  margin: 18px 0 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.install__sub {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.install__cta {
+  margin-top: 26px;
+}
+
+/* Passo a passo alinhado à esquerda dentro do modal centralizado. */
+.install__steps {
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.install__steps ol {
+  margin: 6px 0 12px;
+  padding-left: 20px;
+}
+
+.install__steps p {
+  margin: 0;
+}
+
+/* ---------- recuperacao (12 palavras) ---------- */
+.recover {
+  position: absolute;
+  inset: 0;
+  /* Tela travada: sem rolo nativo o teclado abre por cima (inclusive do 11
+     e do 12) e nada sobe em campo nenhum. */
+  display: flex;
+  flex-direction: column;
+  padding:
+    calc(var(--safe-top) + 20px)
+    calc(var(--safe-right) + 20px)
+    calc(var(--safe-bottom) + 16px)
+    calc(var(--safe-left) + 20px);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.recover__card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.recover__head {
+  text-align: center;
+  margin: 8px 8px 22px;
+}
+
+.recover__title {
+  margin: 0 0 10px;
+  font-size: clamp(22px, 6.4vw, 28px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+}
+
+.recover__lead {
+  margin: 0 auto;
+  max-width: 34ch;
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.recover__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Primeira versao: celulas de 48px fixas, grade no topo, sobrante fica
+     entre a grade e os botoes. Nao estica — altura da grade nao depende do
+     viewport, evitando o bug de iOS (barra de endereco/teclado mudam a
+     altura e a grade flex saltava de tamanho). */
+  display: grid;
+  /* 2 colunas, igual a grade da tela de criar: mesma forma, palavra inteira
+     com folga (a pior, "rabanada", tem 71,5px e o campo fica com ~120px) */
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.recover__cell {
+  margin: 0;
+  /* min-width:0 deixa o trilho 1fr encolher abaixo do min-content do input
+     (um input tem largura intrinseca de ~20 caracteres) */
+  min-width: 0;
+}
+
+.recover__label {
+  display: flex;
+  align-items: center;
+  /* igual a celula da tela de criar (padding 0 10px 0 12px): o campo livre
+     fica com ~120px no pior caso — "rabanada" (71,5px) sobra com folga */
+  gap: 6px;
+  height: 48px;
+  padding: 0 10px 0 12px;
+  border-radius: 12px;
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.recover__label:focus-within {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.recover__n {
+  flex: none;
+  /* largura fixa alinha o inicio de todas as palavras; "12." e o pior caso */
+  width: 1.55em;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.recover__field {
+  position: relative;
+  flex: 1 1 0%;
+  width: 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.recover__input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  /* texto comeca junto do numero, alinhado a esquerda como na tela de criar;
+     o ghost abaixo replica este alinhamento */
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-size: 16px;
+  font-weight: 500;
+  caret-color: var(--fg);
+  outline: none;
+}
+
+/* Sugestao: o resto da palavra cinza atras do input. Aparece so quando o
+   prefixo digitado ainda casa com a wordlist; o texto do usuario (fundo
+   transparente) fica por cima. Tab/Espaco aceita a sugestao. */
+.recover__ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  /* replica o text-align:left do input: so a parte digitada entra no fluxo,
+     o resto cinza pende dela (abaixo) para a sugestao continuar o texto */
+  justify-content: flex-start;
+  /* sufixo pode passar do campo com prefixo curto: corta no limite, sem
+     vazar da pílula */
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+}
+
+.recover__ghost > span:first-child {
+  color: transparent;
+  /* ancora do resto cinza: o suffixo pende do fim do texto digitado */
+  position: relative;
+}
+
+/* resto cinza da sugestao: pende do fim da parte digitada; cor proprio
+   (herdaria o transparente do pai) */
+.recover__ghost-rest {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.recover__label--invalid {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.recover__count {
+  margin: 14px 2px 0 auto;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.recover__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 22px;
+}
+
+.recover__cancel {
+  padding: 12px 8px;
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.recover__go {
+  width: auto;
+  min-width: 132px;
+  margin-top: 0;
+  padding: 14px 28px;
+}
+
+.recover__go:disabled {
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+/* ---------- criacao (12 palavras geradas) ---------- */
+/* Mesma base da recover: shell absoluto, rolo interno, sem unidades de
+   viewport. A grade aqui é somente leitura: 4x3, celulas fixas de 44px. */
+.create {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding:
+    calc(var(--safe-top) + 20px)
+    calc(var(--safe-right) + 20px)
+    calc(var(--safe-bottom) + 16px)
+    calc(var(--safe-left) + 20px);
+  background: var(--bg);
+  /* Cor própria: quando a tela abre dentro da carteira clara, as palavras
+     não podem herdar o texto escuro dela. */
+  color: var(--fg);
+  overflow: auto;
+}
+
+.create__card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Seta de voltar: fileira propria no topo, sem sobrepor o titulo. */
+.create__top {
+  display: flex;
+  justify-content: flex-start;
+  min-height: 40px;
+  margin: 0 0 6px;
+}
+
+.create__back {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-left: -8px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.create__back:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.create__back svg {
+  width: 22px;
+  height: 22px;
+}
+
+.create__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* 2 colunas: a palavra inteira precisa caber (ate 8 letras no 320) */
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.create__cell {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 48px;
+  padding: 0 10px 0 12px;
+  border-radius: 12px;
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.create__word {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Confirmacao de leitura: checkbox invisivel, o quadrado e desenhado. */
+.create__confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 2px 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.create__confirm input {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  display: grid;
+  place-items: center;
+}
+
+.create__confirm input::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--fg);
+  transform: scale(0);
+}
+
+.create__confirm input:checked::before {
+  transform: scale(1);
+}
+
+/* ---------- botao de acao (esticar + dash spiral + check) ---------- */
+/* O pill do canto inferior direito cresce sozinho: min-width e gap animam,
+   o texto troca e o spiral tracejado gira ao lado. So opacidade/box gira. */
+.recover__go {
+  transition:
+    width 0.38s ease,
+    min-width 0.38s ease,
+    padding 0.35s ease,
+    background 0.3s ease,
+    color 0.3s ease;
+}
+
+/* O botao veste cada frase na medida: a largura anima via JS (FLIP do tamanho
+   atual ate o scrollWidth do conteudo novo) e solta no fim, entao o esticar
+   aparece e o tamanho final e sempre o justo da frase. */
+.recover__go.is-working,
+.recover__go.is-done {
+  gap: 10px;
+}
+
+.recover__go.is-working:disabled {
+  opacity: 1;
+  pointer-events: none;
+}
+
+/* Spiral da referencia: anel de tracos curtos escuros no pill branco, girando.
+   SVG com dasharray para os tracos sairem separados e regulares. */
+.go-spin {
+  display: block;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  animation: go-rotate 1.1s linear infinite;
+}
+
+@keyframes go-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Check: so o fundo muda para verde, sem sombra nem brilho. */
+.recover__go.is-done {
+  background: #b9f5a3;
+  color: #14520a;
+}
+
+.recover__go.is-done:disabled {
+  opacity: 1;
+  pointer-events: none;
+}
+
+.go-check {
+  display: block;
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+/* Troca de texto: o conteudo novo entra com fade + subida curta, sem pop.
+   Cada fase monta um .go-fade novo, entao a animacao roda a cada troca. */
+.go-fade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  animation: go-fade-in 0.32s ease;
+}
+
+.go-label {
+  display: block;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+@keyframes go-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Saida: a tela inteira some em opacidade para a carteira. */
+.create.is-leaving,
+.recover.is-leaving,
+.pin.is-leaving {
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+/* ---------- carteira (home clara) ---------- */
+/* Tela travada: só a lista de transações rola; topo, saldo e ações ficam fixos. */
+.wallet {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding:
+    calc(var(--safe-top) + 12px)
+    calc(var(--safe-right) + 16px)
+    0
+    calc(var(--safe-left) + 16px);
+  background: #f1f1f4;
+  color: #131316;
+  overflow: hidden;
+}
+
+/* Barra do topo: logo à esquerda, ajuda e ajustes à direita. */
+.wallet__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wallet__logo {
+  display: block;
+  height: 56px;
+  width: auto;
+}
+
+.wallet__top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wallet__icon-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #131316;
+}
+
+.wallet__icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Cartão de saldo branco, número à esquerda como na referência. */
+.wallet__balance-card {
+  padding: 18px;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 16, 20, 0.04);
+}
+
+.wallet__balance-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wallet__label {
+  margin: 0;
+  font-size: 13px;
+  color: #71717a;
+}
+
+.wallet__eye {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f1f1f4;
+  color: #55555e;
+}
+
+.wallet__eye svg {
+  width: 20px;
+  height: 20px;
+}
+
+.wallet__balance {
+  margin: 10px 0 0;
+  /* Encolhe em telas estreitas para o valor nunca estourar o cartão. */
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  column-gap: 0.08em;
+  font-size: clamp(34px, 11vw, 44px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #111114;
+}
+
+/* R$ do mesmo tamanho dos dígitos, colado no valor. */
+.wallet__currency {
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+/* Máscara do saldo oculto: mesma altura de linha dos rolos, então o
+   cartão não muda de tamanho ao ocultar/mostrar. Asteriscos na fonte
+   do site, igual aos dígitos. */
+.wallet__mask {
+  font-family: 'Google Sans Flex', 'DM Sans';
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* Centavos compactos junto do inteiro: vírgula + 2 dígitos menores,
+   mesma cor, animação de rolo preservada. */
+.wallet__balance-cents {
+  display: inline-flex;
+  align-items: baseline;
+  margin-left: 0.02em;
+  font-size: 0.52em;
+  letter-spacing: 0;
+}
+
+/* Ações coloridas dentro do cartão de saldo: ícone em cima, rótulo embaixo. */
+.wallet__balance-card .wallet__actions {
+  margin-top: 16px;
+}
+
+.wallet__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.wallet__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 92px;
+  padding: 12px;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  /* Vidro da referência: só inset, sem sombra externa. Branco entra
+     forte por cima e dissolve no meio; base afunda de leve. */
+  box-shadow:
+    inset 0 2px 5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 20px 26px 0 rgba(255, 255, 255, 0.45),
+    inset 2px 0 6px 0 rgba(255, 255, 255, 0.35),
+    inset -2px 0 6px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -10px 16px 0 rgba(0, 0, 0, 0.07);
+}
+
+.wallet__tile svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Enviar e Depositar são traço e ocupam menos da caixa que o Sacar
+   preenchido: caixa maior para a tinta igualar. A caixa do traço tem
+   respiro interno, então a tinta começa à direita da primeira letra:
+   puxa para a esquerda até a tinta alinhar (Sacar já nasce colado). */
+.wallet__tile--send svg {
+  width: 30px;
+  height: 30px;
+  margin-left: -7px;
+}
+
+.wallet__tile--add svg {
+  width: 30px;
+  height: 30px;
+  margin-left: -3px;
+}
+
+/* O ícone de saque é preenchido e recortado no contorno do desenho:
+   altura acompanha a largura para não achatar. */
+.wallet__tile--withdraw svg {
+  width: 24px;
+  height: auto;
+}
+
+.wallet__tile--send {
+  background: linear-gradient(160deg, #8df0d8, #4fd8bd);
+  color: #07332a;
+}
+
+.wallet__tile--add {
+  background: linear-gradient(160deg, #c4a4f7, #9a6ff0);
+  color: #2c1063;
+}
+
+.wallet__tile--withdraw {
+  background: linear-gradient(160deg, #c9f78b, #8fe63f);
+  color: #1d3a08;
+}
+
+/* Configurações: topo com voltar e cartão branco de opções. */
+.settings__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.settings__spacer {
+  flex: none;
+  width: 40px;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 16px;
+  border-radius: 22px;
+  background: #fff;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 0;
+  border: 0;
+  border-top: 1px solid #f0f0f3;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.settings-row:first-child {
+  border-top: 0;
+}
+
+.settings-avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #ececf0;
+  color: #55555e;
+}
+
+.settings-avatar svg {
+  width: 22px;
+  height: 22px;
+}
+
+.settings-avatar--danger {
+  background: #fde8e6;
+  color: #d92d20;
+}
+
+.settings-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-label {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.settings-row--danger .settings-label {
+  color: #d92d20;
+}
+
+.settings-sub {
+  font-size: 13px;
+  color: #8a8a93;
+}
+
+.settings-chevron {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: #b9b9c0;
+}
+
+.settings-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+/* Configurações completas: grupos com título e conteúdo já aberto. */
+.settings-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(var(--safe-bottom) + 12px);
+  /* Esconde a barra sem matar a rolagem por toque. */
+  scrollbar-width: none;
+}
+
+.settings-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-group-title {
+  margin: 6px 4px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a8a93;
+}
+
+.settings-group-title:first-child {
+  margin-top: 2px;
+}
+
+.settings-card + .settings-group-title {
+  margin-top: 18px;
+}
+
+/* Seletor Escuro/Claro dentro da linha do tema. */
+.settings-segmented {
+  flex: none;
+  display: flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: #f1f1f4;
+}
+
+.settings-segmented-btn {
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a8a93;
+}
+
+.settings-segmented-btn.is-on {
+  background: #fff;
+  color: #131316;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+/* Interruptor do Sons: trilho cinza apagado, verde Cifra ligado. */
+.settings-switch {
+  flex: none;
+  width: 51px;
+  height: 31px;
+  border-radius: 999px;
+  background: #e4e4e9;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.settings-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  transition: transform 0.2s ease;
+}
+
+.settings-switch.is-on {
+  background: #16a34a;
+}
+
+.settings-switch.is-on .settings-switch-knob {
+  transform: translateX(20px);
+}
+
+.theme-root[data-theme="escuro"] .settings-switch {
+  background: #3a3a41;
+}
+
+.theme-root[data-theme="escuro"] .settings-switch.is-on {
+  background: #16a34a;
+}
+
+/* Aviso neutro da chave de recuperação, dentro do cartão de segurança. */
+.settings-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f1f1f4;
+  color: #55555e;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.settings-note svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+/* Popup de confirmação: cortina escura e caixa branca centralizada. */
+.settings-modal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.settings-modal {
+  width: 100%;
+  max-width: 320px;
+  padding: 22px 20px 18px;
+  border-radius: 22px;
+  background: #fff;
+  text-align: center;
+}
+
+.settings-modal-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #131316;
+}
+
+.settings-modal-text {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #55555e;
+}
+
+.settings-modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-modal-cancel,
+.settings-modal-go {
+  flex: 1;
+  padding: 13px 0;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.settings-modal-cancel {
+  background: #f1f1f4;
+  color: #131316;
+}
+
+.settings-modal-go {
+  background: #131316;
+  color: #fff;
+  text-decoration: none;
+  text-align: center;
+}
+
+/* Exclusão: mesma medida do confirmar, só troca a cor do primário. */
+.settings-modal-go--danger {
+  background: #d92d20;
+  color: #fff;
+}
+
+/* Ajuda: resposta aberta abaixo da fileira, mesmo cartão. */
+.help-text {
+  margin: 0;
+  padding: 2px 0 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #55555e;
+}
+
+/* Ajuda na carteira: página única, sem cartões — só títulos e texto. */
+.help-flow {
+  padding-bottom: calc(var(--safe-bottom) + 16px);
+}
+
+.help-display {
+  margin: 8px 4px 0;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  color: #131316;
+}
+
+.help-lead {
+  margin: 10px 4px 6px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #55555e;
+}
+
+.help-section {
+  align-self: flex-start;
+  margin: 30px 4px 10px;
+  padding: 12px;
+  border-radius: 999px;
+  background: #fff;
+  color: #131316;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.help-entries {
+  display: flex;
+  flex-direction: column;
+}
+
+.help-entry {
+  padding: 18px 16px;
+  border-top: 1px solid #e3e3e8;
+}
+
+.help-entry:first-child {
+  border-top: 0;
+  padding-top: 14px;
+}
+
+.help-entry-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: #131316;
+}
+
+.help-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.help-entry-head .help-entry-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.help-entry-text {
+  margin: 5px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #55555e;
+}
+
+.help-entry-text.is-open {
+  margin-top: 12px;
+}
+
+/* Bloco do suporte (número + descrição soltos, fora do .help-entry):
+   mesma coluna de texto da pílula e dos itens. */
+.help-flow > .help-entry-title,
+.help-flow > .help-entry-text {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+
+.help-fine {
+  margin: 22px 16px 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #8a8a93;
+}
+
+.theme-root[data-theme="escuro"] .help-text {
+  color: #b9b9c0;
+}
+
+.theme-root[data-theme="escuro"] .help-display,
+.theme-root[data-theme="escuro"] .help-entry-title {
+  color: #fff;
+}
+
+.theme-root[data-theme="escuro"] .help-lead,
+.theme-root[data-theme="escuro"] .help-entry-text {
+  color: #b9b9c0;
+}
+
+.theme-root[data-theme="escuro"] .help-entry {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Suporte: os dois botões respiram do cartão e da nota. */
+.settings-scroll .settings-modal-actions {
+  margin: 14px 0;
+}
+
+/* Na ajuda os botões seguem o mesmo recuo lateral da pílula. */
+.help-flow .settings-modal-actions {
+  margin: 18px 4px;
+}
+
+.settings-scroll .settings-modal-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Zona de perigo: mesmo cartão branco, só o título em vermelho. */
+.settings-danger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  /* 20px = 6px do cartão + 14px da linha: mesma altura das outras fileiras. */
+  padding: 20px 16px;
+  border-radius: 22px;
+  background: #fff;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.settings-danger .settings-label {
+  color: #d92d20;
+}
+
+/* ---------- tema: raiz + escuro (principal) ---------- */
+/* display:contents: o wrapper não gera caixa, então as telas absolutas
+   continuam se posicionando pelo #root como antes. */
+.theme-root {
+  display: contents;
+}
+
+/* Escuro na paleta da Cifra: fundo preto das telas de entrada, cartões
+   chumbo, texto branco, divisórias em fio claro. O claro acima segue
+   intocado — este bloco só pinta quando data-theme="escuro". */
+.theme-root[data-theme="escuro"] .wallet {
+  background: #000;
+  color: #f5f5f7;
+}
+
+.theme-root[data-theme="escuro"] .wallet__icon-btn {
+  background: #17171a;
+  color: #f5f5f7;
+  box-shadow: none;
+}
+
+.theme-root[data-theme="escuro"] .wallet__balance-card {
+  background: #141416;
+  border: 0;
+  box-shadow: none;
+}
+
+.theme-root[data-theme="escuro"] .wallet__label {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="escuro"] .wallet__eye {
+  background: #26262b;
+  color: #d7d7de;
+}
+
+.theme-root[data-theme="escuro"] .wallet__balance {
+  color: #fff;
+}
+
+.theme-root[data-theme="escuro"] .wallet__section-title {
+  color: #f5f5f7;
+}
+
+.theme-root[data-theme="escuro"] .wallet__txns-card {
+  background: #141416;
+  border: 0;
+  box-shadow: none;
+}
+
+.theme-root[data-theme="escuro"] .wallet__txn-avatar {
+  background: #26262b;
+  color: #d7d7de;
+}
+
+.theme-root[data-theme="escuro"] .wallet__txn-name {
+  color: #f5f5f7;
+}
+
+.theme-root[data-theme="escuro"] .wallet__txn-date {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="escuro"] .wallet__txn-value--out {
+  color: #f97066;
+}
+
+.theme-root[data-theme="escuro"] .wallet__txn-value--in {
+  color: #3ddc84;
+}
+
+.theme-root[data-theme="escuro"] .wallet__see-all {
+  background: #26262b;
+  color: #fff;
+}
+
+.theme-root[data-theme="escuro"] .txns-list {
+  background: #141416;
+  border: 0;
+  box-shadow: none;
+}
+
+.theme-root[data-theme="escuro"] .txns-item {
+  border-top-color: rgba(255, 255, 255, 0.09);
+}
+
+.theme-root[data-theme="escuro"] .rcpt-ticket {
+  background: #141416;
+  border: 0;
+  box-shadow: none;
+}
+
+.theme-root[data-theme="escuro"] .rcpt-hero {
+  background: linear-gradient(165deg, #1c1c21, #0c0c0f);
+  color: #fff;
+}
+
+.theme-root[data-theme="escuro"] .rcpt-status {
+  border-color: rgba(61, 220, 132, 0.4);
+  color: #7df0ae;
+}
+
+.theme-root[data-theme="escuro"] .rcpt-dot {
+  background: #3ddc84;
+}
+
+.theme-root[data-theme="escuro"] .rcpt-title {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.theme-root[data-theme="escuro"] .rcpt-amount {
+  color: #fff;
+}
+
+.theme-root[data-theme="escuro"] .rcpt-hero-date {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.theme-root[data-theme="escuro"] .rcpt-id,
+.theme-root[data-theme="escuro"] .rcpt-id-copy {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.theme-root[data-theme="escuro"] .rcpt-notch {
+  background: #141416;
+  border-top-color: rgba(255, 255, 255, 0.16);
+}
+
+.theme-root[data-theme="escuro"] .rcpt-notch::before,
+.theme-root[data-theme="escuro"] .rcpt-notch::after {
+  background: #000;
+}
+
+.theme-root[data-theme="escuro"] .rcpt-route {
+  background: #1d1d21;
+}
+
+.theme-root[data-theme="escuro"] .rcpt-point-v {
+  color: #f5f5f7;
+}
+
+.theme-root[data-theme="escuro"] .rcpt-point-k {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="escuro"] .rcpt-track {
+  background: #26262b;
+}
+
+.theme-root[data-theme="escuro"] .settings__title {
+  color: #f5f5f7;
+}
+
+.theme-root[data-theme="escuro"] .settings-group-title {
+  color: #8a8a93;
+}
+
+.theme-root[data-theme="escuro"] .settings-card {
+  background: #141416;
+  border: 0;
+}
+
+.theme-root[data-theme="escuro"] .settings-row {
+  border-top-color: rgba(255, 255, 255, 0.09);
+}
+
+.theme-root[data-theme="escuro"] .settings-avatar {
+  background: #26262b;
+  color: #d7d7de;
+}
+
+.theme-root[data-theme="escuro"] .settings-avatar--danger {
+  background: rgba(249, 112, 102, 0.15);
+  color: #f97066;
+}
+
+.theme-root[data-theme="escuro"] .settings-label {
+  color: #f5f5f7;
+}
+
+.theme-root[data-theme="escuro"] .settings-sub {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="escuro"] .settings-chevron {
+  color: #6e6e77;
+}
+
+.theme-root[data-theme="escuro"] .settings-segmented {
+  background: #26262b;
+}
+
+.theme-root[data-theme="escuro"] .settings-segmented-btn {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="escuro"] .settings-segmented-btn.is-on {
+  background: #3f3f46;
+  color: #fff;
+  box-shadow: none;
+}
+
+.theme-root[data-theme="escuro"] .settings-note {
+  background: #1d1d21;
+  color: #b9b9c0;
+}
+
+.theme-root[data-theme="escuro"] .settings-danger {
+  background: #141416;
+  border: 0;
+}
+
+.theme-root[data-theme="escuro"] .settings-danger .settings-label {
+  color: #f97066;
+}
+
+.theme-root[data-theme="escuro"] .settings-modal-overlay {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.theme-root[data-theme="escuro"] .settings-modal {
+  background: #1c1c1f;
+}
+
+.theme-root[data-theme="escuro"] .settings-modal-title {
+  color: #fff;
+}
+
+.theme-root[data-theme="escuro"] .settings-modal-text {
+  color: #a1a1aa;
+}
+
+.theme-root[data-theme="escuro"] .settings-modal-cancel {
+  background: #2e2e34;
+  color: #fff;
+}
+
+.theme-root[data-theme="escuro"] .settings-modal-go {
+  background: #fff;
+  color: #000;
+}
+
+.theme-root[data-theme="escuro"] .settings-modal-go--danger {
+  background: #d92d20;
+  color: #fff;
+}
+
+/* Transações recentes: única área com rolagem da tela. */
+.wallet__section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.wallet__section-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.wallet__txns-card {
+  /* Estica até um pouco acima da barrinha do iPhone, sem efeito infinito. */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: calc(var(--safe-bottom) + 9px);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 16, 20, 0.04);
+  padding: 4px 16px 0;
+}
+
+.wallet__txns {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  /* Preenche o cartão e rola por dentro quando as linhas passam da tela. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Barra invisível: a lista rola por toque, sem trilho aparente. */
+  scrollbar-width: none;
+}
+
+.wallet__txns::-webkit-scrollbar {
+  display: none;
+}
+
+.wallet__txn {
+  margin: 0;
+  padding: 0;
+}
+
+/* Linha clicável: ocupa a fileira inteira e abre o comprovante. */
+.txn-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* O botão usa spans (phrasing content válido); o layout segue o da fileira. */
+.txn-btn .wallet__txn-info,
+.txn-btn .wallet__txn-name {
+  display: block;
+}
+
+/* Todas as transações: cartão branco com a lista inteira e divisórias. */
+
+.txns-list {
+  list-style: none;
+  margin: 0 0 calc(var(--safe-bottom) + 12px);
+  padding: 4px 16px;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 16, 20, 0.04);
+}
+
+.txns-item {
+  border-top: 1px solid #f0f0f3;
+}
+
+.txns-item:first-child {
+  border-top: 0;
+}
+
+.txns-item .txn-btn {
+  padding: 16px 0;
+}
+
+.txns-month {
+  margin: 16px 4px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a8a93;
+}
+
+.txns-month:first-child {
+  margin-top: 2px;
+}
+
+/* Comprovante diferenciado: herói claro, selo no picote, rota e barras. */
+.rcpt-ticket {
+  margin-top: 4px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 16, 20, 0.04);
+}
+
+.rcpt-hero {
+  padding: 22px 20px 30px;
+  text-align: center;
+  background: linear-gradient(165deg, #ffffff, #f1f1f5);
+  color: #131316;
+}
+
+.rcpt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid rgba(22, 163, 74, 0.45);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #16a34a;
+}
+
+.rcpt-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+}
+
+.rcpt-title {
+  margin: 13px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+.rcpt-amount {
+  margin: 6px 0 0;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111114;
+}
+
+.rcpt-hero-date {
+  display: inline-block;
+  margin: 10px 0 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #ececf0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #55555e;
+}
+
+/* Picote com o selo de concluída sobreposto no centro. */
+.rcpt-notch {
+  position: relative;
+  border-top: 2px dashed #e3e3e8;
+  background: #fff;
+}
+
+.rcpt-notch::before,
+.rcpt-notch::after {
+  content: '';
+  position: absolute;
+  top: -13px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f1f1f4;
+}
+
+.rcpt-notch::before {
+  left: -12px;
+}
+
+.rcpt-notch::after {
+  right: -12px;
+}
+
+.rcpt-seal {
+  position: absolute;
+  top: -21px;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #34d399, #16a34a);
+  border: 3px solid #fff;
+  color: #fff;
+  transform: translateX(-50%);
+}
+
+.rcpt-seal svg {
+  width: 20px;
+  height: 20px;
+}
+
+.rcpt-body {
+  padding: 30px 20px 18px;
+}
+
+/* Rota origem -> destino do valor. */
+.rcpt-route {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 14px 12px;
+  border-radius: 18px;
+  background: #f6f6f8;
+}
+
+.rcpt-point {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+}
+
+.rcpt-avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 8px;
+  border-radius: 50%;
+  background: #131316;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.rcpt-point--to .rcpt-avatar {
+  background: linear-gradient(160deg, #34d399, #16a34a);
+}
+
+.rcpt-point-k {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #8a8a93;
+}
+
+.rcpt-point-v {
+  margin: 3px 0 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #1a1a1e;
+  overflow-wrap: break-word;
+}
+
+.rcpt-track {
+  flex: none;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  color: #16a34a;
+  box-shadow: 0 1px 4px rgba(16, 16, 20, 0.1);
+}
+
+.rcpt-track svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* Protocolo logo abaixo do valor, dentro do herói. */
+.rcpt-id {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: rgba(19, 19, 22, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+
+.rcpt-id-copy {
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: rgba(19, 19, 22, 0.55);
+}
+
+.rcpt-id-copy svg {
+  width: 14px;
+  height: 14px;
+}
+
+.rcpt-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.rcpt-actions .settings-modal-go,
+.rcpt-actions .settings-modal-cancel {
+  width: 100%;
+  padding: 16px 0;
+}
+
+/* Marca do comprovante: pequena e apagada, só de detalhe. */
+.rcpt-brand {
+  display: block;
+  width: 72px;
+  height: auto;
+  margin: 2px auto 0;
+  opacity: 0.35;
+}
+
+/* Rodapé do cartão: tamanho e raio de antes, com 3px de respiro das
+   laterais e do fundo do cartão. */
+.wallet__see-all {
+  display: block;
+  margin: auto -13px 3px;
+  padding: 14px;
+  border: none;
+  border-radius: 10px 10px 22px 22px;
+  background: #ececf0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #131316;
+}
+
+.wallet__see-all:disabled {
+  opacity: 0.4;
+}
+
+/* Estado vazio: o cartão mantém o tamanho, fantasma + texto no centro,
+   sem o botão Ver tudo (não há nada para ver). */
+.wallet__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 300px;
+  padding: 32px 16px;
+  text-align: center;
+  color: #8a8a93;
+}
+
+.wallet__empty svg {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 8px;
+}
+
+.wallet__empty-t {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #131316;
+}
+
+.wallet__empty-s {
+  margin: 0;
+  max-width: 26ch;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.theme-root[data-theme="escuro"] .wallet__empty-t {
+  color: #f5f5f7;
+}
+
+.wallet__txn-avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  background: #ececf0;
+  color: #55555e;
+}
+
+.wallet__txn-avatar svg {
+  width: 26px;
+  height: auto;
+  /* Ajuste óptico: meio pixel para a direita e meio para cima. */
+  transform: translate(-0.5px, -0.5px);
+}
+
+/* Nome com a largura toda da linha: quebra só entre palavras, sem cortar
+   e sem hífen, por mais comprido que seja. Data e valor dividem a linha
+   de baixo (o valor desce sozinho quando não cabe ao lado). */
+.wallet__txn-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.wallet__txn-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #1a1a1e;
+  hyphens: none;
+  overflow-wrap: break-word;
+}
+
+.wallet__txn-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 8px;
+  row-gap: 2px;
+  margin-top: 2px;
+}
+
+.wallet__txn-date {
+  margin: 0;
+  font-size: 13px;
+  color: #8a8a92;
+  white-space: nowrap;
+}
+
+.wallet__txn-value {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wallet__txn-value--out {
+  color: #e5484d;
+}
+
+.wallet__txn-value--in {
+  color: #16a34a;
+}
+
+/* Telas estreitas: folga extra para o nome inteiro sem quebrar no meio. */
+@media (max-width: 360px) {
+  .txn-btn {
+    gap: 10px;
+  }
+  .wallet__txn-avatar {
+    width: 51px;
+    height: 51px;
+  }
+  .wallet__txn-name {
+    font-size: 15px;
+  }
+  .wallet__txn-value {
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recover__go,
+  .create.is-leaving,
+  .pin.is-leaving,
+  .recover.is-leaving {
+    transition: none;
+  }
+  .go-spin,
+  .go-fade {
+    animation: none;
+  }
+  .loader,
+  .loader__wave--back,
+  .loader__wave--front,
+  .loader__bob,
+  .loader__rise {
+    animation: none;
+  }
+  .send-overlay,
+  .send-sheet,
+  .send-confirm,
+  .send-confirm > *,
+  .send-form,
+  .send-form > *:not(.send-cta),
+  .send-handle svg,
+  .send-handle.is-paid::after,
+  .send-swipe.is-paid .send-handle svg polyline {
+    animation: none;
+  }
+}
+
+/* ---------- enviar (só modais) ---------- */
+.send-overlay {
+  /* absolute (não fixed): preenche o shell #root e o teclado abre por cima
+     sem mover a lâmina — mesmo padrão da recover. */
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding:
+    calc(var(--safe-top) + 56px)
+    10px
+    var(--safe-bottom);
+  background: rgba(0, 0, 0, 0.55);
+  overscroll-behavior: contain;
+  animation: send-fade 0.25s ease;
+}
+
+.send-overlay.is-closing {
+  animation: send-fade-out 0.3s ease forwards;
+}
+
+.send-sheet {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 24px;
+  padding: 12px;
+  gap: 8px;
+  animation: send-curtain-up 0.34s cubic-bezier(0.32, 0.72, 0.24, 1);
+}
+
+.send-overlay.is-closing .send-sheet {
+  animation: send-curtain-down 0.3s ease forwards;
+}
+
+.send-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0;
+  min-height: 40px;
+}
+
+.send-head .settings__title {
+  margin: 0;
+  color: #131316;
+  text-align: center;
+}
+
+.send-head--center {
+  justify-content: center;
+}
+
+.send-card {
+  flex: none;
+  background: #f6f6f8;
+  border: 0;
+  border-radius: 20px;
+  padding: 12px 14px;
+  box-shadow: none;
+}
+
+.send-k {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a8a93;
+}
+
+.send-input {
+  width: 100%;
+  padding: 9px 0;
+  border: 0;
+  border-top: 1px solid #ececf0;
+  background: transparent;
+  color: #131316;
+  font-size: 16px;
+  font-weight: 500;
+  outline: none;
+}
+
+.send-input:first-of-type {
+  border-top: 0;
+}
+
+/* Placeholder da chave igual ao do CPF: mesmo peso, cor e altura. */
+.send-input::placeholder {
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.35;
+  color: #8a8a93;
+  opacity: 1;
+}
+.send-input::-webkit-input-placeholder {
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.35;
+  color: #8a8a93;
+  opacity: 1;
+}
+.send-input::-moz-placeholder {
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.35;
+  color: #8a8a93;
+  opacity: 1;
+}
+
+.send-amount {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 0;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font-size: clamp(38px, 10.5vw, 50px);
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #131316;
+  cursor: pointer;
+}
+
+.send-amount.is-active,
+.send-input.is-active {
+  outline: none;
+}
+
+.send-amount:focus,
+.send-amount:focus-visible,
+.send-input:focus {
+  outline: none;
+}
+
+.send-docrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #ececf0;
+}
+
+.send-docrow--flat {
+  border-top: 0;
+}
+
+.send-doc-actions {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  margin-top: 0;
+}
+
+/* Reserva fixa: os botoes ocupam o mesmo espaco mesmo escondidos, entao o
+   teclado nao pula quando toca no CPF. */
+.send-doc-actions.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Campo do documento não é editável de verdade: sem menu do iOS no toque
+   duplo, sem autocomplete. Copiar e colar ficam na mesma linha. */
+.send-docfield {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: 9px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 16px;
+  font-weight: 500;
+  color: #131316;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.send-docfield:focus {
+  outline: none;
+}
+
+.send-docfield-tx {
+  display: inline;
+  font-weight: 500;
+  color: #131316;
+}
+
+.send-docfield-ph {
+  display: inline;
+  white-space: normal;
+  line-height: 1.35;
+  color: #8a8a93;
+  font-weight: 500;
+}
+
+.send-mini {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #131316;
+}
+
+.send-mini:disabled {
+  opacity: 0.4;
+}
+
+.send-cursor {
+  display: inline-block;
+  width: 3px;
+  height: 0.95em;
+  margin-left: 5px;
+  vertical-align: -0.08em;
+  background: #8fe63f;
+  animation: send-blink 1s steps(1) infinite;
+}
+
+.send-cursor--doc {
+  height: 1em;
+  margin-left: 0;
+  margin-right: 4px;
+  vertical-align: -0.12em;
+}
+
+.send-balance {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+  padding: 10px 14px;
+}
+
+.send-balance-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  background: #c9f78b;
+  color: #1d3a08;
+}
+
+.send-balance-ic svg {
+  display: block;
+  width: 36px;
+  height: 36px;
+}
+
+.send-balance-tx {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.send-balance-k {
+  font-size: 13px;
+  font-weight: 600;
+  color: #55555e;
+}
+
+.send-balance-v {
+  font-size: 16px;
+  font-weight: 800;
+  color: #131316;
+}
+
+/* Teclado grande: teclas altas, preenche o modal sem cortar o Continuar. */
+.send-keys {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 320px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border: 0;
+  border-radius: 20px;
+  background: #f6f6f8;
+}
+
+.send-key {
+  min-height: 44px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: #fff;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
+  color: #131316;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Telas baixas: compacta sem esmagar, Continuar sempre visível. */
+@media (max-height: 700px) {
+  .send-overlay {
+    padding:
+      calc(var(--safe-top) + 12px)
+      10px
+      var(--safe-bottom);
+  }
+
+  .send-sheet {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .send-head {
+    min-height: 36px;
+  }
+
+  .send-card {
+    padding: 10px 12px;
+    border-radius: 16px;
+  }
+
+  .send-input,
+  .send-docfield {
+    padding: 8px 0;
+    font-size: 15px;
+  }
+
+  .send-amount {
+    font-size: clamp(32px, 9vw, 38px);
+    padding: 4px 0;
+  }
+
+  .send-balance {
+    padding: 8px 12px;
+  }
+
+  .send-balance-ic {
+    width: 40px;
+    height: 40px;
+  }
+
+  .send-balance-ic svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .send-keys {
+    gap: 8px;
+    padding: 10px;
+    border-radius: 16px;
+    max-height: none;
+  }
+
+  .send-key {
+    font-size: 20px;
+    border-radius: 12px;
+  }
+
+  .send-cta {
+    min-height: 50px;
+    padding: 13px 0;
+  }
+}
+
+/* Lâmina cripto mais alta: o overlay abre quase no topo, então endereço +
+   as 3 moedas aparecem inteiras sem rolagem e sem compactar nada.
+   A rolagem interna é travada aqui: se couber no teste, não rola em
+   nenhum aparelho. */
+.send-overlay.is-crypto {
+  padding-top: calc(var(--safe-top) + 10px);
+}
+
+.send-overlay.is-crypto .wd-scroll {
+  overflow-y: hidden;
+  overflow-y: clip;
+  overscroll-behavior: none;
+}
+
+/* Telas médias (até 800px de altura): a lâmina do saque usa o modo
+   denso nos DOIS modos — o mesmo respiro no Pix e no Cripto, então quem
+   tem mais conteúdo (o Cripto) fica com a lâmina maior; rótulo, teclas,
+   fontes, selos e preços mantêm o tamanho cheio, e a rolagem interna da
+   cripto fica travada. */
+@media (max-height: 800px) {
+  .send-overlay.is-crypto {
+    padding-top: var(--safe-top);
+  }
+
+  .send-overlay.is-withdraw .send-sheet {
+    gap: 4px;
+    padding: 6px 10px;
+  }
+
+  .send-overlay.is-withdraw .send-form {
+    gap: 6px;
+  }
+
+  .send-overlay.is-crypto .wd-scroll {
+    gap: 6px;
+  }
+
+  /* Cripto com as mesmas medidas do Pix: lâmina, form, valor, cartões,
+     título, saldo e teclado iguais — o modal fica maior que antes. */
+  .send-overlay.is-crypto .send-sheet {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .send-overlay.is-crypto .send-form {
+    gap: 8px;
+  }
+
+  .send-overlay.is-crypto .send-balance {
+    padding: 10px 14px;
+  }
+
+  .send-overlay.is-crypto .send-amount {
+    padding: 6px 0;
+  }
+
+  .send-overlay.is-withdraw .send-head {
+    min-height: 32px;
+  }
+
+  .send-overlay.is-withdraw .send-card {
+    padding: 8px 12px;
+  }
+
+  .send-overlay.is-withdraw .send-k {
+    margin-bottom: 2px;
+  }
+
+  /* Trilho Pix | Cripto com a mesma altura nos dois modos (o seletor
+     não leva is-crypto de propósito): simetria total ao trocar. */
+  .send-overlay .wd-rail {
+    padding: 2px;
+  }
+
+  .send-overlay .wd-rail .settings-segmented-btn {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .send-overlay.is-withdraw .send-amount {
+    padding: 4px 0;
+  }
+
+  .send-overlay.is-withdraw .send-cta {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .send-overlay.is-withdraw .send-keys {
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .send-overlay.is-crypto .wd-coins {
+    gap: 6px;
+    padding: 1px;
+  }
+
+  .send-overlay.is-crypto .wd-coins--inside {
+    margin: 4px 0 0;
+    padding: 0;
+  }
+
+  .send-overlay.is-crypto .wd-coin {
+    gap: 4px;
+    padding: 3px;
+  }
+
+  .send-overlay.is-crypto .wd-dest {
+    padding: 10px 14px;
+  }
+
+  .send-overlay.is-crypto .send-k {
+    margin-bottom: 3px;
+  }
+
+  .send-overlay.is-crypto .wd-badge {
+    width: 28px;
+    height: 28px;
+  }
+
+  .send-overlay.is-crypto .send-keys {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  /* Pix com o respiro do enviar; a cripto usa o mesmo respiro. */
+  .send-overlay.is-withdraw:not(.is-crypto) .send-sheet {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .send-overlay.is-withdraw:not(.is-crypto) .send-form {
+    gap: 8px;
+  }
+
+  .send-overlay.is-withdraw:not(.is-crypto) .send-card {
+    padding: 10px 14px;
+  }
+
+  .send-overlay.is-withdraw:not(.is-crypto) .send-k {
+    margin-bottom: 3px;
+  }
+
+  .send-overlay.is-withdraw:not(.is-crypto) .send-amount {
+    padding: 6px 0;
+  }
+
+  .send-overlay.is-withdraw:not(.is-crypto) .send-keys {
+    gap: 6px;
+    padding: 8px;
+  }
+}
+
+/* Telefones baixos (até 700px): aperta 2px de cada lado dos cartões de
+   moeda para a lista passar com margem — nada muda no conteúdo. */
+@media (max-height: 700px) {
+  .send-overlay.is-crypto .wd-coins {
+    padding: 1px;
+  }
+
+  .send-overlay.is-crypto .wd-coins--inside {
+    margin: 3px 0 0;
+    padding: 0;
+  }
+
+  .send-overlay.is-crypto .wd-coin {
+    padding: 2px;
+  }
+}
+
+/* Telefones muito baixos (até 600px): modo compacto proporcional, nos
+   dois modos do saque — selos, valor, saldo e botão encolhem juntos
+   para tudo aparecer sem rolagem; telas maiores não entram aqui. */
+@media (max-height: 600px) {
+  .send-overlay.is-withdraw .send-sheet {
+    gap: 3px;
+  }
+
+  .send-overlay.is-withdraw .send-form {
+    gap: 3px;
+  }
+
+  .send-overlay.is-withdraw .send-head {
+    min-height: 28px;
+  }
+
+  .send-overlay .wd-rail .settings-segmented-btn {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .send-overlay.is-withdraw .send-card {
+    padding: 6px 10px;
+  }
+
+  .send-overlay.is-withdraw .send-k {
+    margin-bottom: 0;
+  }
+
+  .send-overlay.is-withdraw .send-input {
+    padding: 6px 0;
+  }
+
+  .send-overlay.is-withdraw .send-amount {
+    font-size: 26px;
+    padding: 2px 0;
+  }
+
+  .send-overlay.is-withdraw .send-balance-ic {
+    width: 36px;
+    height: 36px;
+  }
+
+  .send-overlay.is-withdraw .send-balance-ic svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .send-overlay.is-withdraw .send-cta {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .send-overlay.is-withdraw .send-keys {
+    gap: 2px;
+    padding: 5px;
+  }
+
+  .send-overlay.is-crypto .wd-scroll {
+    gap: 4px;
+  }
+
+  .send-overlay.is-crypto .wd-coins {
+    gap: 4px;
+    padding: 0;
+  }
+
+  .send-overlay.is-crypto .wd-coins--inside {
+    margin: 2px 0 0;
+    padding: 0;
+  }
+
+  .send-overlay.is-crypto .wd-coin {
+    gap: 3px;
+    padding: 0;
+  }
+
+  .send-overlay.is-crypto .wd-dest {
+    padding: 8px 12px;
+  }
+
+  /* Cripto com as mesmas medidas do Pix também no compacto. */
+  .send-overlay.is-crypto .send-sheet {
+    padding: 8px 10px;
+    gap: 5px;
+  }
+
+  .send-overlay.is-crypto .send-k {
+    margin-bottom: 2px;
+  }
+
+  .send-overlay.is-crypto .send-balance {
+    padding: 8px 12px;
+  }
+
+  .send-overlay.is-crypto .send-form {
+    gap: 4px;
+  }
+
+  .send-overlay.is-crypto .send-amount {
+    padding-top: 3px;
+    padding-bottom: 3px;
+  }
+
+  .send-overlay.is-crypto .send-keys {
+    gap: 3px;
+    padding: 7px;
+  }
+
+  .send-overlay.is-crypto .wd-badge {
+    width: 20px;
+    height: 20px;
+  }
+
+  .send-overlay.is-crypto .wd-coin-name {
+    font-size: 13px;
+  }
+
+  .send-overlay.is-crypto .wd-coin-price {
+    font-size: 10px;
+  }
+
+  /* Pix com o respiro do enviar; a cripto usa o mesmo respiro. */
+  .send-overlay.is-withdraw:not(.is-crypto) .send-sheet {
+    padding: 8px 10px;
+    gap: 5px;
+  }
+
+  .send-overlay.is-withdraw:not(.is-crypto) .send-form {
+    gap: 4px;
+  }
+
+  .send-overlay.is-withdraw:not(.is-crypto) .send-card {
+    padding: 8px 12px;
+  }
+
+  .send-overlay.is-withdraw:not(.is-crypto) .send-k {
+    margin-bottom: 2px;
+  }
+
+  .send-overlay.is-withdraw:not(.is-crypto) .send-amount {
+    padding: 3px 0;
+  }
+
+  .send-overlay.is-withdraw:not(.is-crypto) .send-keys {
+    gap: 3px;
+    padding: 7px;
+  }
+}
+
+.send-key:active {
+  background: #c9f78b;
+}
+
+.send-key--back svg {
+  width: 26px;
+  height: 26px;
+  margin: 0 auto;
+}
+
+.send-cta {
+  flex: none;
+  width: 100%;
+  margin-top: 0;
+  padding: 15px 0;
+  min-height: 54px;
+  font-size: 16px;
+}
+
+/* Continuar preto sobre a lâmina branca no tema escuro; no claro é o inverso. */
+.send-sheet .settings-modal-go {
+  background: #131316;
+  color: #fff;
+}
+
+.send-cta:disabled {
+  opacity: 0.35;
+}
+
+/* Troca de conteúdo na mesma lâmina: o conteúdo some suave e a lâmina
+   assenta no novo tamanho só com transform (GPU). */
+.send-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* O Continuar fica fora: a animação mexe na opacidade e cobriria o
+   visual de bloqueado, fazendo ele piscar desbloqueado na abertura. */
+.send-form > *:not(.send-cta) {
+  animation: send-content-in 0.22s ease backwards;
+}
+
+.send-sheet.is-leaving .send-form {
+  animation: send-content-out 0.15s ease forwards;
+  pointer-events: none;
+}
+
+.send-confirm {
+  position: static;
+  align-self: stretch;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 4px 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+}
+
+.send-confirm > * {
+  animation: send-content-in 0.24s ease backwards;
+}
+
+.send-confirm > *:nth-child(2) {
+  animation-delay: 0.02s;
+}
+
+.send-confirm > *:nth-child(3) {
+  animation-delay: 0.04s;
+}
+
+.send-confirm > *:nth-child(4) {
+  animation-delay: 0.06s;
+}
+
+.send-confirm > *:nth-child(5) {
+  animation-delay: 0.08s;
+}
+
+.send-confirm > *:nth-child(6) {
+  animation-delay: 0.1s;
+}
+
+.send-confirm > *:nth-child(7) {
+  animation-delay: 0.12s;
+}
+
+.send-confirm > *:nth-child(8) {
+  animation-delay: 0.14s;
+}
+
+.send-overlay.is-closing .send-confirm {
+  animation: send-curtain-down 0.3s ease forwards;
+}
+
+.send-overlay.is-closing .send-confirm > * {
+  animation: none;
+}
+
+.send-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: #f6f6f8;
+  color: #131316;
+}
+
+.send-x svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Voltar da revisão: seta no canto superior esquerdo, volta a editar sem fechar. */
+.send-back {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: #f6f6f8;
+  color: #131316;
+}
+
+.send-back svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* X clarinho igual ao voltar, nos dois temas. */
+.send-sheet .send-x,
+.send-confirm .send-x {
+  background: #f6f6f8;
+  color: #131316;
+  border: 0;
+}
+
+.send-confirm-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #131316;
+}
+
+.send-confirm-sub {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #71717a;
+}
+
+.send-to-k {
+  margin: 18px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #8a8a93;
+}
+
+.send-to-v {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #131316;
+  overflow-wrap: break-word;
+}
+
+.send-to-doc {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #71717a;
+}
+
+.send-confirm-amount {
+  margin: 10px 0 0;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #131316;
+}
+
+.send-lines {
+  margin-top: 16px;
+  border-top: 1px solid #ececf0;
+}
+
+.send-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid #ececf0;
+  font-size: 14px;
+  color: #55555e;
+}
+
+.send-line strong {
+  color: #131316;
+}
+
+.send-swipe {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: 16px;
+  padding: 6px;
+  border-radius: 16px;
+  background: #ececf0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color 0.5s ease;
+}
+
+.send-swipe.is-paid {
+  background: #4abe60;
+}
+
+.send-handle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #131316;
+  color: #fff;
+  cursor: grab;
+  touch-action: none;
+  will-change: transform;
+}
+
+.send-handle svg {
+  width: 24px;
+  height: 24px;
+}
+
+.send-swipe.is-paid .send-handle {
+  background: #fff;
+  color: #16a34a;
+}
+
+/* Texto no centro real da trilha: absoluto sobre ela toda, sem empurrar
+   a alça e sem bloquear o arraste. */
+.send-swipe-tx {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #55555e;
+  pointer-events: none;
+}
+
+.send-swipe.is-paid .send-swipe-tx {
+  color: #fff;
+}
+
+@keyframes send-curtain-up {
+  from {
+    transform: translateY(calc(100% + 24px));
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes send-curtain-down {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateY(calc(100% + 24px));
+  }
+}
+
+@keyframes send-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes send-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes send-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes send-shrink {
+  from {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes send-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(48px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes send-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes send-content-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes send-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes send-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Enviar no tema escuro fica sempre branco: lâmina branca com texto preto. */
+.theme-root[data-theme="escuro"] .send-sheet,
+.theme-root[data-theme="escuro"] .send-card,
+.theme-root[data-theme="escuro"] .send-keys {
+  background: #fff;
+  color: #131316;
+}
+
+.theme-root[data-theme="escuro"] .send-confirm {
+  background: transparent;
+  color: #131316;
+}
+
+.theme-root[data-theme="escuro"] .send-head .settings__title {
+  color: #131316;
+}
+
+.theme-root[data-theme="escuro"] .send-head .wallet__icon-btn {
+  background: #131316;
+  color: #fff;
+  box-shadow: none;
+}
+
+.theme-root[data-theme="escuro"] .send-card,
+.theme-root[data-theme="escuro"] .send-keys {
+  background: #f6f6f8;
+}
+
+.theme-root[data-theme="escuro"] .send-input {
+  border-top-color: #ececf0;
+  color: #131316;
+}
+
+.theme-root[data-theme="escuro"] .send-docrow {
+  border-top-color: #ececf0;
+}
+
+.theme-root[data-theme="escuro"] .send-docfield {
+  color: #131316;
+}
+
+.theme-root[data-theme="escuro"] .send-docfield-tx {
+  color: #131316;
+}
+
+.theme-root[data-theme="escuro"] .send-amount,
+.theme-root[data-theme="escuro"] .send-balance-v,
+.theme-root[data-theme="escuro"] .send-key,
+.theme-root[data-theme="escuro"] .send-confirm-title,
+.theme-root[data-theme="escuro"] .send-to-v,
+.theme-root[data-theme="escuro"] .send-confirm-amount,
+.theme-root[data-theme="escuro"] .send-line strong {
+  color: #131316;
+}
+
+.theme-root[data-theme="escuro"] .send-key {
+  background: #fff;
+}
+
+.theme-root[data-theme="escuro"] .send-key:active {
+  background: #c9f78b;
+}
+
+/* Enviar no tema claro é o inverso: lâmina preta com texto branco. */
+.theme-root[data-theme="claro"] .send-sheet {
+  background: #000;
+  color: #f5f5f7;
+}
+
+.theme-root[data-theme="claro"] .send-card,
+.theme-root[data-theme="claro"] .send-keys {
+  background: #141416;
+  color: #f5f5f7;
+}
+
+.theme-root[data-theme="claro"] .send-confirm {
+  background: transparent;
+  color: #f5f5f7;
+}
+
+.theme-root[data-theme="claro"] .send-head .settings__title,
+.theme-root[data-theme="claro"] .send-confirm-title,
+.theme-root[data-theme="claro"] .send-to-v,
+.theme-root[data-theme="claro"] .send-confirm-amount,
+.theme-root[data-theme="claro"] .send-line strong,
+.theme-root[data-theme="claro"] .send-input,
+.theme-root[data-theme="claro"] .send-docfield-tx,
+.theme-root[data-theme="claro"] .send-amount,
+.theme-root[data-theme="claro"] .send-balance-v,
+.theme-root[data-theme="claro"] .send-key,
+.theme-root[data-theme="claro"] .send-mini {
+  color: #fff;
+}
+
+.theme-root[data-theme="claro"] .send-k,
+.theme-root[data-theme="claro"] .send-docfield-ph,
+.theme-root[data-theme="claro"] .send-balance-k,
+.theme-root[data-theme="claro"] .send-to-doc,
+.theme-root[data-theme="claro"] .send-confirm-sub {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="claro"] .send-input::placeholder {
+  color: #9a9aa3;
+}
+.theme-root[data-theme="claro"] .send-input::-webkit-input-placeholder {
+  color: #9a9aa3;
+}
+
+/* ---------- PIN de 4 digitos ---------- */
+/* Shell padrão Cifra; preservados da referência: título, subtítulo e cápsulas. */
+.pin {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding:
+    calc(var(--safe-top) + 20px)
+    calc(var(--safe-right) + 20px)
+    calc(var(--safe-bottom) + 16px)
+    calc(var(--safe-left) + 20px);
+  background: var(--bg);
+  color: var(--fg);
+  overflow: auto;
+}
+
+.pin__card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.pin__slots {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 26px 0 6px;
+}
+
+/* Cápsulas gigantes da referência: altura ~2x a largura, raio total.
+   Borda com a mesma espessura em todos os estados: só a cor muda,
+   então a cápsula nunca muda de tamanho ao preencher. */
+.pin__slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 160px;
+  aspect-ratio: 13 / 25;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  font-size: clamp(56px, 20vw, 120px);
+  line-height: 1;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Dígito marcado: neutro, número escuro sobre fundo claro. */
+.pin__slot.is-on {
+  border-color: transparent;
+  background: #f1f1f4;
+  color: #0f1115;
+}
+
+/* Slot da vez: mesma espessura, só acende a cor, com cursor fino. */
+.pin__slot.is-next {
+  border-color: #fff;
+}
+
+/* Cursor fino no slot da vez, como na referência. */
+.pin__slot.is-next::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 34%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 3px;
+  animation: pin-caret 1s linear infinite;
+}
+
+@keyframes pin-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin__slot.is-next::after {
+    animation: none;
+  }
+}
+
+/* Teclado neutro do PIN: teclas compactas e juntas, mesmo raio das pílulas.
+   Seletor longo de propósito: passa por cima da cor que o tema claro
+   dá às teclas do Enviar no fim do arquivo. */
+.pin .pin__keys.send-keys {
+  flex: none;
+  grid-template-rows: repeat(4, auto);
+  width: 100%;
+  max-width: 320px;
+  margin: 22px auto 0;
+  padding: 0;
+  gap: 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  max-height: none;
+}
+
+.pin .pin__keys.send-keys .send-key {
+  height: 56px;
+  min-height: 56px;
+  border-radius: 20px;
+  background: #26262b;
+  color: #fff;
+  font-size: 22px;
+}
+
+.pin .pin__keys.send-keys .send-key:disabled {
+  opacity: 0.55;
+}
+
+.pin .pin__keys.send-keys .send-key:not(:disabled):active {
+  background: #333338;
+}
+
+.pin .pin__keys.send-keys .send-key--back svg {
+  width: 24px;
+  height: 24px;
+}
+
+.pin .pin__keys.send-keys .send-key--empty {
+  background: transparent;
+  visibility: hidden;
+}
+
+.pin__top {
+  display: flex;
+  justify-content: flex-start;
+  min-height: 40px;
+  margin: 0 0 6px;
+}
+
+.pin__back {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-left: -8px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.pin__back:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pin__back svg {
+  width: 22px;
+  height: 22px;
+}
+
+.pin__back:disabled {
+  opacity: 0.4;
+}
+
+.pin__head {
+  margin-top: 18px;
+  text-align: center;
+}
+
+.pin__title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.pin__sub {
+  margin: 12px auto 0;
+  max-width: 30ch;
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.pin__error {
+  margin: 12px auto 0;
+  max-width: 30ch;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #ff8a8a;
+}
+
+/* Erro de PIN: tremida curta nos slots em vermelho, texto some sozinho. */
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-9px); }
+  40% { transform: translateX(9px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.pin__slots.is-error {
+  animation: pin-shake 0.4s ease;
+}
+
+.pin__slots.is-error .pin__slot {
+  border-color: rgba(255, 110, 110, 0.9);
+}
+
+.pin__slots.is-error .pin__slot.is-next::after {
+  background: rgba(255, 138, 138, 0.9);
+}
+
+.pin__error.is-live {
+  animation: pin-error-life 2.4s ease forwards;
+}
+
+@keyframes pin-error-life {
+  0% { opacity: 0; transform: translateY(4px); }
+  12% { opacity: 1; transform: none; }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin__slots.is-error {
+    animation: none;
+  }
+  .pin__error.is-live {
+    animation: none;
+  }
+}
+
+.pin__foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 22px;
+  padding-bottom: 8px;
+}
+
+/* Pill largo igual ao das palavras: estica, gira o spiral e fica verde. */
+.pin__cta {
+  margin-top: 6px;
+}
+
+.send-key--empty {
+  visibility: hidden;
+}
+.theme-root[data-theme="claro"] .send-input::-moz-placeholder {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="claro"] .send-input,
+.theme-root[data-theme="claro"] .send-docrow {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.theme-root[data-theme="claro"] .send-lines {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.theme-root[data-theme="claro"] .send-line {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="claro"] .send-key {
+  background: #26262b;
+}
+
+.theme-root[data-theme="claro"] .send-mini {
+  background: #26262b;
+}
+
+.theme-root[data-theme="claro"] .send-sheet .send-x,
+.theme-root[data-theme="claro"] .send-back {
+  background: #26262b;
+  color: #fff;
+}
+
+/* Continuar branco sobre a lâmina preta, espelho do preto sobre branco. */
+.theme-root[data-theme="claro"] .send-sheet .settings-modal-go {
+  background: #fff;
+  color: #131316;
+}
+
+.theme-root[data-theme="claro"] .send-swipe {
+  background: #26262b;
+}
+
+.theme-root[data-theme="claro"] .send-handle {
+  background: #fff;
+  color: #131316;
+}
+
+.theme-root[data-theme="escuro"] .send-lines {
+  border-top-color: #ececf0;
+}
+
+.theme-root[data-theme="escuro"] .send-line {
+  border-bottom-color: #ececf0;
+}
+
+.theme-root[data-theme="escuro"] .send-swipe {
+  background: #ececf0;
+}
+
+.theme-root[data-theme="escuro"] .send-swipe-tx {
+  color: #55555e;
+}
+
+.theme-root[data-theme="escuro"] .send-x {
+  background: #f6f6f8;
+  color: #131316;
+}
+
+.theme-root[data-theme="escuro"] .send-back {
+  background: #f6f6f8;
+  color: #131316;
+}
+
+.theme-root[data-theme="escuro"] .send-sheet .settings-modal-go {
+  background: #131316;
+  color: #fff;
+}
+
+/* ---------- sacar (Pix + Cripto em breve) ---------- */
+.wd-rail {
+  flex: none;
+  width: 224px;
+  max-width: 100%;
+  margin: 2px auto 0;
+}
+
+/* Metades iguais e centralizadas: Pix e Cripto com a mesma largura nos
+   dois modos, simetria total ao trocar. */
+.wd-rail .settings-segmented-btn {
+  flex: 1 1 0;
+  text-align: center;
+}
+
+/* Trilho compacto em qualquer altura: mesma medida nos dois modos. */
+.wd-rail.settings-segmented {
+  padding: 2px;
+}
+
+.wd-rail .settings-segmented-btn {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  font-size: 12px;
+}
+
+/* Segmented do sacar acompanha a lâmina: trilho cinza-escuro na preta. */
+.theme-root[data-theme="claro"] .wd-rail.settings-segmented {
+  background: #26262b;
+}
+
+.theme-root[data-theme="claro"] .wd-rail .settings-segmented-btn {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="claro"] .wd-rail .settings-segmented-btn.is-on {
+  background: #fff;
+  color: #131316;
+  box-shadow: none;
+}
+
+/* Moedas na lâmina preta: nome branco, preço apagado, radio branco. */
+.theme-root[data-theme="claro"] .wd-coin.is-on {
+  background: rgb(255 255 255 / 0.07);
+  border-color: rgb(255 255 255 / 0.28);
+}
+
+.theme-root[data-theme="claro"] .wd-coin-name {
+  color: #fff;
+}
+
+.theme-root[data-theme="claro"] .wd-coin-price {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="claro"] .wd-radio.is-on {
+  background: #fff;
+  border-color: #fff;
+  color: #131316;
+}
+
+/* Na lâmina branca o trilho é cinza-claro, um tom abaixo do branco da
+   pílula para ela destacar. */
+.theme-root[data-theme="escuro"] .wd-rail.settings-segmented {
+  background: #e9e9ed;
+}
+
+.theme-root[data-theme="escuro"] .wd-rail .settings-segmented-btn {
+  color: #8a8a93;
+}
+
+.theme-root[data-theme="escuro"] .wd-rail .settings-segmented-btn.is-on {
+  background: #fff;
+  color: #131316;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.wd-addrrow {
+  gap: 10px;
+}
+
+/* Endereço + Colar na mesma linha: o campo estica, a pílula fica fixa. */
+.wd-addrrow--inline {
+  align-items: center;
+}
+
+.wd-addrrow--inline .send-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Destino + moeda no mesmo cartão: endereço em cima, grade embaixo. */
+
+/* A grade perde o visual de cartão aninhado: vira conteúdo do cartão único. */
+.wd-coins--inside {
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Endereço + moedas rolam dentro da lâmina; valor, teclado e Continuar
+   ficam fixos para o teclado nunca ser esmagado. */
+.wd-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: none;
+}
+
+.wd-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Seletor de moedas em grade 3-up: as 3 opções aparecem inteiras sem
+   rolagem em qualquer altura — truque de baralho lado a lado, não lista. */
+.wd-coins {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+}
+
+.wd-coin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 6px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 16px;
+  background: transparent;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.wd-coin.is-on {
+  background: rgb(0 0 0 / 0.04);
+  border-color: rgb(0 0 0 / 0.14);
+}
+
+.wd-badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: transparent;
+  padding: 0;
+  line-height: 0;
+}
+
+.wd-badge svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  flex: none;
+  margin: auto;
+}
+
+.wd-coin-tx {
+  flex: none;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  text-align: center;
+}
+
+.wd-coin-name {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #131316;
+}
+
+.wd-coin-price {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8a8a93;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wd-radio {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #c9c9d1;
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+}
+
+.wd-radio.is-on {
+  background: #131316;
+  border-color: #131316;
+}
+
+.wd-radio svg {
+  width: 10px;
+  height: 10px;
+}
+
+.wd-addr {
+  word-break: break-all;
+}
+
+/* Revisão cripto: bloco único sem divisórias, tudo no mesmo ritmo. */
+.wd-receive {
+  margin: 6px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #55555e;
+}
+
+.wd-receive strong {
+  color: #131316;
+}
+
+.wd-rlines {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wd-rline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  font-size: 14px;
+  color: #55555e;
+}
+
+.wd-rline strong {
+  color: #131316;
+}
+
+.theme-root[data-theme="claro"] .wd-receive,
+.theme-root[data-theme="claro"] .wd-rline {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="claro"] .wd-receive strong,
+.theme-root[data-theme="claro"] .wd-rline strong {
+  color: #fff;
+}
+
+/* ---------- depositar (revisão Pix) ---------- */
+.dep-min {
+  flex: none;
+  margin: -2px 0 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a8a93;
+}
+
+.dep-qr {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(21, 1fr);
+  width: 196px;
+  height: 196px;
+  margin: 14px auto 0;
+  padding: 12px;
+  background: #fff;
+  border-radius: 18px;
+}
+
+.dep-cell {
+  width: 100%;
+  aspect-ratio: 1;
+  background: transparent;
+}
+
+.dep-cell.is-on {
+  background: #131316;
+}
+
+.dep-code-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  background: #f6f6f8;
+  border-radius: 20px;
+  padding: 12px 12px 12px 14px;
+}
+
+.dep-code {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: break-all;
+  color: #55555e;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dep-wait {
+  flex: none;
+  width: 100%;
+  margin-top: 12px;
+  padding: 15px 0;
+  border: 0;
+  border-radius: 999px;
+  background: #131316;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: not-allowed;
+  opacity: 0.55;
+  animation: dep-pulse 1.6s ease-in-out infinite;
+}
+
+.dep-wait:disabled {
+  cursor: not-allowed;
+}
+
+.dep-wait.is-ok {
+  opacity: 1;
+  animation: none;
+  background: #16a34a;
+}
+
+@keyframes dep-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ---------- saldo slot machine ---------- */
+.wallet__balance {
+  font-variant-numeric: tabular-nums;
+}
+
+.slot {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  font-family: 'Google Sans Flex', 'DM Sans';
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot > * {
+  flex: none;
+}
+
+.slot-reel {
+  display: inline-block;
+  /* Sem largura fixa: o rolo abraça o dígito mais largo (0–9) e todos os
+     rolos ficam iguais, com o passo uniforme entre eles. */
+  height: 1em;
+  overflow: hidden;
+  vertical-align: baseline;
+}
+
+/* Separadores (. ,): avanço curto na DM Sans, então o aperto é leve,
+   só para colarem nos dígitos. */
+.slot-sep {
+  line-height: 1;
+  margin: 0 -0.04em;
+}
+
+.slot-strip {
+  display: block;
+  transition: transform 0.7s cubic-bezier(0.22, 0.9, 0.3, 1);
+  will-change: transform;
+}
+
+.slot-digit {
+  display: block;
+  height: 1em;
+  line-height: 1;
+  /* Centralizado: a Google Sans Flex tem algarismos tabulares de verdade,
+     então todos os dígitos têm a mesma largura e o ritmo fica uniforme. */
+  text-align: center;
+}
+
+/* Depositar no tema claro: lâmina preta, QR sempre branco. */
+.theme-root[data-theme="claro"] .dep-min {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="claro"] .dep-code-row {
+  background: #141416;
+}
+
+.theme-root[data-theme="claro"] .dep-code {
+  color: #9a9aa3;
+}
+
+.theme-root[data-theme="claro"] .dep-wait {
+  background: #fff;
+  color: #131316;
+}
+
+.theme-root[data-theme="claro"] .dep-wait.is-ok {
+  background: #16a34a;
+  color: #fff;
+}
+
+/* Depositar no tema escuro: lâmina branca, cinzas do enviar. */
+.theme-root[data-theme="escuro"] .dep-code-row {
+  background: #f6f6f8;
+}
+
+.theme-root[data-theme="escuro"] .dep-code {
+  color: #55555e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot-strip {
+    transition: none;
+  }
+  .dep-wait {
+    animation: none;
+    opacity: 0.75;
+  }
+}
