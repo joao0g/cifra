@@ -1,8 +1,10 @@
-/* Base do backend Cifra (Vercel Functions): GET /api/health. */
-export default function handler(req: any, res: any) {
+/* GET /api/health — liveness p/ monitor externo. Sem auth e sem detalhes:
+   resposta fixa não vaza estado de configuração. */
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
-    res.status(405).json({ ok: false, error: 'method_not_allowed' })
-    return
+    return res.status(405).json({ ok: false, error: 'method_not_allowed' })
   }
-  res.status(200).json({ ok: true, service: 'cifra-api', time: new Date().toISOString() })
+  return res.status(200).json({ ok: true, service: 'cifra' })
 }
