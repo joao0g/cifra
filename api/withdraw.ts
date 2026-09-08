@@ -8,7 +8,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getDb } from './_lib/db.js'
 import { getSessionUser } from './_lib/session.js'
 import { clientIp, rateLimit } from './_lib/ratelimit.js'
-import { applyEntry } from './_lib/ledger.js'
+import { applyEntryWithin } from './_lib/ledger.js'
 import { eulenCreateWithdrawal } from './_lib/eulen.js'
 import { decryptPii } from './_lib/crypto.js'
 import { parseAmountToCents, sanitizeStr } from './_lib/validate.js'
@@ -50,9 +50,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const taxNumber = decryptPii(taxEnc)
 
     // Débito atômico: se saldo insuficiente, applyEntry lança e nada é criado.
+    // Débito + INSERT na MESMA transação: crash no meio nunca deixa lançamento
+    // órfão (débito sem linha de withdrawal para o webhook reconciliar).
     const withdrawalId = crypto.randomUUID()
-    await applyEntry(user.user_id, 'debit', amountCents, 'withdrawals', withdrawalId, `withdrawal request ${withdrawalId}`)
-    await sql`INSERT INTO withdrawals (id, user_id, amount_cents, pix_key) VALUES (${withdrawalId}, ${user.user_id}, ${amountCents}, ${pixKey})`
+    await sql.begin(async (tx: any) => {
+      await applyEntryWithin(tx, user.user_id, 'debit', amountCents, 'withdrawals', withdrawalId, `withdrawal request ${withdrawalId}`)
+      await tx`INSERT INTO withdrawals (id, user_id, amount_cents, pix_key) VALUES (${withdrawalId}, ${user.user_id}, ${amountCents}, ${pixKey})`
+    })
 
     try {
       const w = await eulenCreateWithdrawal(pixKey, amountCents, taxNumber)
@@ -64,9 +68,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // w.depositAddress; o webhook 'sent' conclui o fluxo.
       return res.status(200).json({ ok: true, withdrawalId, amountCents, eulenId: w.withdrawalId })
     } catch (upstream: any) {
-      // Eulen recusou o payout: devolve o saldo na hora (refund na mesma lógica do webhook).
-      await applyEntry(user.user_id, 'credit', amountCents, 'withdrawals', withdrawalId, `withdrawal refund ${withdrawalId}`)
-      await sql`UPDATE withdrawals SET status = 'failed', updated_at = now() WHERE id = ${withdrawalId}`
+      // Eulen recusou o payout: devolve o saldo e marca failed NA MESMA transação
+      // (refund sem troca de status = webhook de bounce posterior não reembolsa de novo,
+      // porque 'failed' não está no conjunto ativo).
+      await sql.begin(async (tx: any) => {
+        await applyEntryWithin(tx, user.user_id, 'credit', amountCents, 'withdrawals', withdrawalId, `withdrawal refund ${withdrawalId}`)
+        await tx`UPDATE withdrawals SET status = 'failed', updated_at = now() WHERE id = ${withdrawalId}`
+      })
       console.error(JSON.stringify({ scope: 'withdraw', err: String(upstream?.message ?? upstream), code: upstream?.messageCode ?? null }))
       return res.status(502).json({ ok: false, error: 'eulen_error' })
     }

@@ -10,7 +10,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getDb } from './_lib/db.js'
 import { webhookSecretMatches, eulenDepositStatus } from './_lib/eulen.js'
-import { claimDepositApproval, applyEntryWithin, applyEntry } from './_lib/ledger.js'
+import { claimDepositApproval, applyEntryWithin } from './_lib/ledger.js'
+import { truncateStr } from './_lib/validate.js'
+
+/** Resumo enxuto do corpo para o webhook_events.raw: só campos escalares conhecidos,
+    cada um cortado. O corpo cru NUNCA é persistido inteiro (teto anti-bloat/DoS). */
+function slimBody(body: Record<string, unknown>): { [k: string]: string | number } {
+  const out: { [k: string]: string | number } = {}
+  for (const k of ['webhookType', 'qrId', 'id', 'status', 'valueInCents', 'withdrawalId', 'pixKey']) {
+    const v = (body as any)[k]
+    if (typeof v === 'string') out[k] = truncateStr(v, 500)
+    else if (typeof v === 'number' && Number.isFinite(v)) out[k] = v
+  }
+  return out
+}
 
 function unauthorized(res: VercelResponse) {
   return res.status(401).json({ ok: false, error: 'unauthorized' })
@@ -35,8 +48,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const body = (req.body ?? {}) as Record<string, unknown>
   const source = typeof body.webhookType === 'string' ? body.webhookType : 'unknown'
-  const rawId = typeof body.qrId === 'string' ? body.qrId : typeof body.id === 'string' ? body.id : ''
-  const status = typeof body.status === 'string' ? body.status : ''
+  // Tetos rígidos: ids da Eulen são curtos; nada sem limite entra em query ou storage.
+  const rawId = truncateStr(
+    typeof body.qrId === 'string' ? body.qrId : typeof body.id === 'string' ? body.id : '', 200)
+  const status = truncateStr(typeof body.status === 'string' ? body.status : '', 100)
   if (!rawId) {
     return res.status(400).json({ ok: false, error: 'missing_event_id' })
   }
@@ -48,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Idempotência: a primeira inserção do par (source, id:status) ganha; replay = no-op 200.
     const claimed = await sql`
       INSERT INTO webhook_events (source, event_id, last_status, raw)
-      VALUES (${source}, ${eventId}, ${status || null}, ${sql.json(body as any)})
+      VALUES (${source}, ${eventId}, ${status || null}, ${sql.json(slimBody(body))})
       ON CONFLICT (source, event_id) DO NOTHING
       RETURNING event_id`
     if (claimed.length === 0) {
@@ -123,22 +138,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // ---------- med (chargeback): estorna o crédito do depósito, o que couber no saldo ----------
+    // Claim atômico (mesmo padrão do crédito): a transição approved→refunded É o claim.
+    // Dois eventos MED concorrentes (ou MED + retry) disputam o mesmo UPDATE condicional:
+    // exatamente um estorna; o outro recebe null. Sem isso, SELECT→débito→UPDATE em
+    // passos separados permitiria duplo estorno do mesmo depósito.
     if (source === 'med') {
       const dep = await sql`
         SELECT id, user_id, status, amount_paid_cents FROM deposits WHERE qr_id = ${rawId} LIMIT 1`
-      if (dep.length > 0 && dep[0].status === 'approved' && dep[0].amount_paid_cents > 0) {
+      if (dep.length > 0 && dep[0].status === 'approved' && Number(dep[0].amount_paid_cents) > 0) {
         const d = dep[0]
-        const owed = Number(d.amount_paid_cents)
-        const balRows = await sql`SELECT balance_cents FROM wallets WHERE user_id = ${d.user_id} LIMIT 1`
-        const voidable = Math.min(owed, Number(balRows[0]?.balance_cents ?? 0))
-        if (voidable > 0) {
-          await applyEntry(d.user_id, 'debit', voidable, 'adjustments', d.id, `MED estorno ${rawId}`)
-        }
-        if (voidable < owed) {
-          await sql`INSERT INTO audit_log (user_id, action, details) VALUES (${d.user_id}, 'med_owed', ${sql.json({ qrId: rawId, owed, voided: voidable })})`
-        }
-        await sql`UPDATE deposits SET status = 'refunded', updated_at = now() WHERE id = ${d.id}`
-        await sql`INSERT INTO audit_log (user_id, action, details) VALUES (${d.user_id}, 'med_void', ${sql.json({ qrId: rawId, cents: voidable })})`
+        const voided = await sql.begin(async (tx: any): Promise<number | null> => {
+          const won = await tx`
+            UPDATE deposits SET status = 'refunded', updated_at = now()
+            WHERE id = ${d.id} AND status = 'approved'
+            RETURNING user_id, amount_paid_cents`
+          if (won.length === 0) return null
+          const uid = String(won[0].user_id)
+          const owed = Number(won[0].amount_paid_cents)
+          const balRows = await tx`SELECT balance_cents FROM wallets WHERE user_id = ${uid} FOR UPDATE`
+          const voidable = Math.min(owed, Number(balRows[0]?.balance_cents ?? 0))
+          if (voidable > 0) {
+            await applyEntryWithin(tx, uid, 'debit', voidable, 'adjustments', d.id, `MED estorno ${rawId}`)
+          }
+          if (voidable < owed) {
+            await tx`INSERT INTO audit_log (user_id, action, details) VALUES (${uid}, 'med_owed', ${sql.json({ qrId: rawId, owed, voided: voidable })})`
+          }
+          await tx`INSERT INTO audit_log (user_id, action, details) VALUES (${uid}, 'med_void', ${sql.json({ qrId: rawId, cents: voidable })})`
+          return voidable
+        })
+        return res.status(200).json({ ok: true, received: true, voided: voided !== null })
       }
       return res.status(200).json({ ok: true, received: true })
     }

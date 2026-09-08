@@ -27,6 +27,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const sql = getDb()
+    // Higiene (mesmo cron, custo irrisório): challenges de uso único e sessões
+    // expiradas não podem acumular para sempre — apaga em lote com retenção.
+    const hygiene = await sql`
+      WITH c1 AS (DELETE FROM auth_challenges WHERE used_at IS NOT NULL AND used_at < now() - interval '7 days' RETURNING 1),
+           c2 AS (DELETE FROM auth_challenges WHERE used_at IS NULL AND expires_at < now() - interval '1 day' RETURNING 1),
+           c3 AS (DELETE FROM sessions WHERE expires_at < now() - interval '30 days' RETURNING 1),
+           c4 AS (DELETE FROM sessions WHERE revoked_at IS NOT NULL AND revoked_at < now() - interval '30 days' RETURNING 1)
+      SELECT (SELECT COUNT(*)::int FROM c1) AS ch_used, (SELECT COUNT(*)::int FROM c2) AS ch_exp,
+             (SELECT COUNT(*)::int FROM c3) AS sess_exp, (SELECT COUNT(*)::int FROM c4) AS sess_rev`
     const pending = await sql`
       SELECT id, user_id, qr_id, status FROM deposits
       WHERE qr_id IS NOT NULL
@@ -51,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error(JSON.stringify({ scope: 'reconcile', qrId: dep.qr_id, err: String(err?.message ?? err) }))
       }
     }
-    return res.status(200).json({ ok: true, checked: pending.length, credited, closed })
+    return res.status(200).json({ ok: true, checked: pending.length, credited, closed, hygiene: hygiene[0] ?? null })
   } catch (err: any) {
     console.error(JSON.stringify({ scope: 'reconcile', err: String(err?.message ?? err) }))
     return res.status(500).json({ ok: false, error: 'internal' })

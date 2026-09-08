@@ -33,6 +33,11 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
 
 export function clientIp(req: { headers?: Record<string, string | string[] | undefined> }): string {
   const h = req.headers ?? {}
+  // x-real-ip é autoritativo na Vercel (edge sobrescreve); x-forwarded-for[0] é
+  // forjável pelo cliente e só serve de fallback — nunca como primeira fonte,
+  // senão o atacante gira IP fake e anula o rate limit das rotas sem sessão.
+  const real = h['x-real-ip']
+  if (typeof real === 'string' && real.length > 0) return real.split(',')[0].trim()
   const xf = h['x-forwarded-for']
   if (typeof xf === 'string' && xf.length > 0) return xf.split(',')[0].trim()
   return 'unknown'

@@ -9,6 +9,7 @@ import { getDb } from './_lib/db.js'
 import { newSessionToken, hashToken, sessionExpiry } from './_lib/session.js'
 import { clientIp, rateLimit } from './_lib/ratelimit.js'
 import { encryptPii } from './_lib/crypto.js'
+import { isValidCpf, isValidFullName, isValidRawEd25519Key } from './_lib/validate.js'
 
 const WALLET_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // sem I,1,O,0,5,S — legível e citável
 
@@ -29,12 +30,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const publicKey = typeof req.body?.publicKey === 'string' ? req.body.publicKey : ''
   const nonce = typeof req.body?.nonce === 'string' ? req.body.nonce : ''
   const signature = typeof req.body?.signature === 'string' ? req.body.signature : ''
-  // PII é opcional no login; quando presente, cifrado em repouso (exigência Eulen no 1º depósito)
+  // PII é opcional no login; quando presente, TEM que ser válida (mesma régua do /deposit).
   const fullName = typeof req.body?.fullName === 'string' ? req.body.fullName.trim() : ''
   const taxNumber = typeof req.body?.taxNumber === 'string' ? req.body.taxNumber.replace(/\D/g, '') : ''
 
-  if (!publicKey || !nonce || !signature) {
+  // Limites rígidos: nada sem teto chega ao banco. Ed25519 raw = 44 chars; nonce UUID = 36;
+  // assinatura Ed25519 = 88. Tetos folgados, mas finitos.
+  if (!isValidRawEd25519Key(publicKey) || nonce.length === 0 || nonce.length > 100 ||
+      signature.length === 0 || signature.length > 200) {
     return res.status(400).json({ ok: false, error: 'missing_fields' })
+  }
+  if ((fullName || taxNumber) && (!isValidFullName(fullName) || !isValidCpf(taxNumber))) {
+    return res.status(400).json({ ok: false, error: 'invalid_end_user' })
   }
 
   try {

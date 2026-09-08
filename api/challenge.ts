@@ -4,6 +4,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getDb } from './_lib/db.js'
 import { clientIp, rateLimit } from './_lib/ratelimit.js'
+import { isValidRawEd25519Key } from './_lib/validate.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -13,7 +14,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(429).json({ ok: false, error: 'rate_limited' })
   }
   const publicKey = typeof req.body?.publicKey === 'string' ? req.body.publicKey : ''
-  if (publicKey.length === 0 || publicKey.length > 500) {
+  // Só Ed25519 raw 32B (base64 44 chars): barra lixo antes de gravar (anti-bloat) e
+  // garante que o verify vai conseguir importar a chave depois.
+  if (!isValidRawEd25519Key(publicKey)) {
     return res.status(400).json({ ok: false, error: 'invalid_public_key' })
   }
   try {

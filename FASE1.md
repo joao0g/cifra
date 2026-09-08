@@ -15,15 +15,27 @@ Backend serverless no mesmo domínio do PWA (`/api/*`). Nenhuma chave sai do amb
    `claimDepositApproval()` no ledger — o claim é a transição `UPDATE deposits ... WHERE
    status NOT IN ('approved','refunded') RETURNING`, atômica no Postgres. Webhook, pull
    (deposit-status) e reconcile disputam esse UPDATE: só um credita; quem perde recebe
-   null. Mesmo padrão nos estornos de saque (transição como claim).
+   null. Mesmo padrão nos estornos de saque (transição como claim) e no **estorno MED**:
+   `approved→refunded` como claim atômico (débito + auditoria na mesma transação) —
+   dois MED concorrentes não estornam 2x. O corpo cru do webhook NUNCA é persistido
+   inteiro (`slimBody`: só escalares conhecidos, cortados) e ids/status têm teto
+   (200/100 chars).
 4. **Fail-closed em tudo.** Sem `DATABASE_URL` / `EULEN_WEBHOOK_SECRET` / `CRON_SECRET` a rota
    responde 401/500 — nunca "abre". Rota desconhecida de webhook: registra e não age.
 5. **PII cifrado em repouso** (nome + CPF com AES-256-GCM, chave fora do código). CPF do dono
    da chave Pix é obrigatório no saque (regra Eulen desde 05/2026).
 6. **Anti double-spend**: `SELECT ... FOR UPDATE` na wallet dentro de `applyEntry` — dois
-   saques simultâneos não passam do saldo.
+   saques simultâneos não passam do saldo. Débito do saque + INSERT do withdrawal na
+   MESMA transação (sem lançamento órfão em crash no meio).
 7. **Rate limit** por usuário e por IP em cada rota sensível (em memória, camada 1;
-   camada distribuída é upgrade futuro no mesmo contrato).
+   camada distribuída é upgrade futuro no mesmo contrato). IP vem de `x-real-ip`
+   (autoritativo na Vercel); `x-forwarded-for` é só fallback, nunca primeira fonte.
+8. **Identidade = Ed25519 raw 32B** (base64 44 chars) derivada da seed; challenge/verify
+   recusam qualquer outro formato. Tetos rígidos em todos os inputs sem limite natural
+   (nonce ≤100, assinatura ≤200, qrId ≤200). PII só entra validada (mesma régua do deposit).
+9. **Higiene no cron do reconcile**: apaga challenges usados/expirados e sessões
+   expiradas/revogadas com retenção (webhook_events e audit_log são trilha de fraude
+   e NÃO são apagados).
 
 ## Rotas
 

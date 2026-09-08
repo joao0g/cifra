@@ -39,5 +39,22 @@ export function isValidFullName(input: unknown): input is string {
 
 export function sanitizeStr(input: unknown, maxLen: number): string {
   if (typeof input !== 'string') return ''
-  return input.normalize('NFC').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maxLen)
+  return input.normalize('NFC').replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, maxLen)
+}
+
+/** Chave pública Ed25519 raw (32 bytes, base64 44 chars com '='). Padrão de identidade Cifra:
+    seed (12 palavras) → keypair → pubkey raw. NÃO aceitar SPKI/DER aqui. */
+export function isValidRawEd25519Key(input: unknown): input is string {
+  if (typeof input !== 'string') return false
+  if (!/^[A-Za-z0-9+/]{43}=$/.test(input)) return false
+  try {
+    return Buffer.from(input, 'base64').length === 32
+  } catch {
+    return false
+  }
+}
+
+/** Corta texto para no máximo maxLen (payloads que vão ao banco/log nunca crescem sem limite). */
+export function truncateStr(input: string, maxLen: number): string {
+  return input.length <= maxLen ? input : input.slice(0, maxLen)
 }

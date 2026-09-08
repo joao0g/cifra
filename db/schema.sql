@@ -10,7 +10,7 @@
 CREATE TABLE IF NOT EXISTS users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   wallet_id     CHAR(16) UNIQUE NOT NULL,          -- identificador público (ex.: "CIFRA8K2M9P4Q")
-  public_key    TEXT UNIQUE NOT NULL,              -- chave pública Ed25519 derivada da seed (base64 SPKI)
+  public_key    TEXT UNIQUE NOT NULL,              -- Ed25519 raw 32B (base64 44 chars); identidade da conta. Servidor valida o formato (isValidRawEd25519Key).
   full_name_enc TEXT,                              -- PII cifrado (AES-256-GCM); exigência Eulen no 1º depósito
   tax_number_enc TEXT,                             -- CPF cifrado; usado no beneficiário do saque
   status        TEXT NOT NULL DEFAULT 'active'
