@@ -1,9 +1,9 @@
 /**
- * Home da carteira (referência clara): saudação, cartão de saldo, ações
- * coloridas, faixa de verificação e transações recentes. Valores de exemplo
- * (mock), sem backend.
+ * Home da carteira: saudação, cartão de saldo, ações coloridas, faixa de
+ * verificação e transações recentes. Dados REAIS do servidor via sync
+ * (saldo + extrato); snapshot cifrado abre instantâneo até offline.
  */
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import logoBlack from '../assets/logo-black.png'
 import logoWhite from '../assets/logo-white.png'
 import Deposit from './Deposit'
@@ -15,44 +15,100 @@ import Settings from './Settings'
 import TxnRow from './TxnRow'
 import Txns from './Txns'
 import Withdraw from './Withdraw'
-import { TXNS, type Txn } from '../lib/txns'
+import { type Txn } from '../lib/txns'
 
-const BALANCE = 63000
+import { fetchWallet, loadSnapshot, saveSnapshot, toTxns } from '../lib/sync'
+import { ApiError } from '../lib/auth'
 
-const MONTH_LONG = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-]
-const MONTH_SHORT = [
-  'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
-  'jul', 'ago', 'set', 'out', 'nov', 'dez',
-]
-
-/* Depósito, saque e envio caem no topo do extrato com data e mês de agora.
-   Enviar usa o mesmo trilho do saque Pix: só muda o nome no extrato. */
-function buildTxn(amount: number, kind: 'deposito' | 'saque' | 'transfer', name?: string, fee?: number): Txn {
-  const now = new Date()
-  const day = String(now.getDate()).padStart(2, '0')
-  const mon = now.getMonth()
-  const hh = String(now.getHours()).padStart(2, '0')
-  const mm = String(now.getMinutes()).padStart(2, '0')
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase()
-  return {
-    dir: kind === 'deposito' ? 'in' : 'out',
-    kind: kind === 'transfer' ? 'transfer' : kind,
-    name: kind === 'deposito' ? 'Depósito concluído' : kind === 'saque' ? 'Saque concluído' : `Transferência para ${name?.trim() || 'destinatário'}`,
-    date: `${day} ${MONTH_SHORT[mon]} ${now.getFullYear()}, ${hh}:${mm}`,
-    month: `${MONTH_LONG[mon]} de ${now.getFullYear()}`,
-    value: amount,
-    ...(fee && fee > 0 ? { fee } : {}),
-    id: `CIF-${String(now.getFullYear()).slice(2)}-${Date.now().toString(36).slice(-4).toUpperCase()}${rand}`,
-  }
-}
-
-export default function Wallet({ initialView = 'home', phrase = null, pin = null, onPinChange, theme, onTheme, sounds, onSounds, onDelete }: { initialView?: 'home' | 'settings' | 'help' | 'txns'; phrase?: string[] | null; pin?: string | null; onPinChange?: (pin: string) => void; theme: 'claro' | 'escuro'; onTheme: (t: 'claro' | 'escuro') => void; sounds: boolean; onSounds: (on: boolean) => void; onDelete?: () => void }) {
+export default function Wallet({ initialView = 'home', phrase = null, pin = null, onPinChange, theme, onTheme, sounds, onSounds, onDelete, token, relogin }: { initialView?: 'home' | 'settings' | 'help' | 'txns'; phrase?: string[] | null; pin?: string | null; onPinChange?: (pin: string) => void; theme: 'claro' | 'escuro'; onTheme: (t: 'claro' | 'escuro') => void; sounds: boolean; onSounds: (on: boolean) => void; onDelete?: () => void; token: string | null; relogin: () => Promise<string | null> }) {
   const [hidden, setHidden] = useState(false)
   const [showSend, setShowSend] = useState(false)
-  const [balance, setBalance] = useState(BALANCE)
+  /* Saldo real do servidor (centavos) + extrato real. Snapshot cifrado abre
+     instantâneo; servidor sempre vence. Sem sessão = sem dados (offline). */
+  const [balanceCents, setBalanceCents] = useState<number | null>(null)
+  const [txns, setTxns] = useState<Txn[]>([])
+  const [hasPii, setHasPii] = useState(false)
+  const [walletId, setWalletId] = useState('')
+  const [syncState, setSyncState] = useState<'loading' | 'ok' | 'offline'>('loading')
+  const tokenRef = useRef(token)
+  const pinRef = useRef(pin)
+  const reloginRef = useRef(relogin)
+  tokenRef.current = token
+  pinRef.current = pin
+  reloginRef.current = relogin
+  const hasDataRef = useRef(false)
+
+  const refresh = useCallback(async () => {
+    const pull = async (tok: string) => {
+      const w = await fetchWallet(tok)
+      const mapped = toTxns(w)
+      hasDataRef.current = true
+      setBalanceCents(w.balanceCents)
+      setTxns(mapped)
+      setHasPii(w.hasPii)
+      setWalletId(w.walletId)
+      setSyncState('ok')
+      const p = pinRef.current
+      if (p) {
+        await saveSnapshot(p, { walletId: w.walletId, balanceCents: w.balanceCents, hasPii: w.hasPii, txns: mapped, ts: Date.now() })
+      }
+    }
+    const t = tokenRef.current
+    if (!t) {
+      setSyncState(hasDataRef.current ? 'ok' : 'offline')
+      return
+    }
+    try {
+      await pull(t)
+    } catch (err) {
+      // Sessão expirada: uma tentativa silenciosa de re-login com as palavras
+      // em memória antes de declarar offline.
+      if (err instanceof ApiError && err.status === 401) {
+        const fresh = await reloginRef.current()
+        if (fresh) {
+          try {
+            await pull(fresh)
+            return
+          } catch {
+            /* cai no offline abaixo */
+          }
+        }
+      }
+      setSyncState(hasDataRef.current ? 'ok' : 'offline')
+    }
+  }, [])
+
+  useEffect(() => {
+    let dead = false
+    ;(async () => {
+      const p = pinRef.current
+      if (p) {
+        const snap = await loadSnapshot(p)
+        if (!dead && snap) {
+          hasDataRef.current = true
+          setBalanceCents(snap.balanceCents)
+          setTxns(snap.txns)
+          setHasPii(snap.hasPii)
+          setWalletId(snap.walletId)
+        }
+      }
+      if (!dead) await refresh()
+    })()
+    const iv = window.setInterval(() => {
+      refresh()
+    }, 30_000)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      dead = true
+      window.clearInterval(iv)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [refresh])
+
+  const balance = (balanceCents ?? 0) / 100
   const allowTest = import.meta.env.DEV
   const [showDeposit, setShowDeposit] = useState(
     () => allowTest && new URLSearchParams(window.location.search).has('deposit'),
@@ -65,7 +121,6 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
   const [returnTo, setReturnTo] = useState<'home' | 'txns'>('home')
   /* Prévia do estado vazio: ?wallet&empty só em DEV, para teste. */
   const previewEmpty = allowTest && new URLSearchParams(window.location.search).has('empty')
-  const [txns, setTxns] = useState<Txn[]>(TXNS)
   const recent = previewEmpty ? [] : txns
 
   const openReceipt = (t: Txn, from: 'home' | 'txns') => {
@@ -111,9 +166,14 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
         </div>
       </div>
 
+      {syncState === 'offline' && (
+        <button className="dep-min" type="button" onClick={() => refresh()} aria-live="polite">
+          Sincronização indisponível — toque para tentar de novo.
+        </button>
+      )}
       <div className="wallet__balance-card">
         <div className="wallet__balance-head">
-          <p className="wallet__label">Saldo total</p>
+          <p className="wallet__label">Saldo total{walletId !== '' ? ` · ${walletId}` : ''}</p>
           <button
             className="wallet__eye"
             type="button"
@@ -210,20 +270,23 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
         <Send
           balance={balance}
           sounds={sounds}
+          token={token}
+          relogin={relogin}
           onClose={() => setShowSend(false)}
-          onPaid={(amount, key, _doc, fee) => {
-            setBalance((b) => b - amount)
-            setTxns((prev) => [buildTxn(amount, 'transfer', key, fee), ...prev])
+          onPaid={() => {
+            refresh()
             setShowSend(false)
           }}
         />
       )}
       {showDeposit && (
         <Deposit
+          token={token}
+          hasPii={hasPii}
+          relogin={relogin}
           onClose={() => setShowDeposit(false)}
-          onPaid={(amount) => {
-            setBalance((b) => b + amount)
-            setTxns((prev) => [buildTxn(amount, 'deposito'), ...prev])
+          onPaid={() => {
+            refresh()
             setShowDeposit(false)
           }}
         />
@@ -232,10 +295,11 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
         <Withdraw
           balance={balance}
           sounds={sounds}
+          token={token}
+          relogin={relogin}
           onClose={() => setShowWithdraw(false)}
-          onPaid={(amount, fee) => {
-            setBalance((b) => b - amount)
-            setTxns((prev) => [buildTxn(amount, 'saque', undefined, fee), ...prev])
+          onPaid={() => {
+            refresh()
             setShowWithdraw(false)
           }}
         />

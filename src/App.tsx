@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Create from './components/Create'
 import InstallGate from './components/InstallGate'
 import LiquidLogo from './components/LiquidLogo'
 import Recover from './components/Recover'
 import Wallet from './components/Wallet'
 import Welcome from './components/Welcome'
+import { loadSession, loginWithWords, logoutEverywhere } from './lib/auth'
 import { loadSoundsEnabled, saveSoundsEnabled, preloadSounds, unlockAudio } from './lib/sounds'
 
 // Fluxo: um ciclo do loader (3.8s) e a welcome entra por cima. Hooks de teste
@@ -44,6 +45,46 @@ export default function App() {
   // ?pin=1234 só em DEV, para testar a troca de PIN nas configurações.
   const [phrase, setPhrase] = useState<string[] | null>(null)
   const [pin, setPin] = useState<string | null>(() => (allowTest ? params.get('pin') : null))
+  // Sessão do backend (token opaco). Carrega a salva; entra offline se o servidor falhar.
+  const [session, setSession] = useState<{ token: string; walletId: string } | null>(() => {
+    const s = loadSession()
+    return s ? { token: s.token, walletId: s.walletId } : null
+  })
+  const phraseRef = useRef<string[] | null>(null)
+  phraseRef.current = phrase
+
+  /* Re-login silencioso com as palavras em memória (sessão expirada). */
+  const relogin = useCallback(async (): Promise<string | null> => {
+    const w = phraseRef.current
+    if (!w) return null
+    try {
+      const r = await loginWithWords(w)
+      setSession({ token: r.token, walletId: r.walletId })
+      return r.token
+    } catch {
+      return null
+    }
+  }, [])
+
+  const enterWithWords = async (w: string[], p: string) => {
+    setPhrase(w)
+    setPin(p)
+    try {
+      const r = await loginWithWords(w)
+      setSession({ token: r.token, walletId: r.walletId })
+    } catch {
+      /* sem servidor: entra offline, o banner da carteira oferece retry */
+    }
+    setScreen('wallet')
+  }
+
+  const leaveAll = async () => {
+    await logoutEverywhere()
+    setPhrase(null)
+    setPin(null)
+    setSession(null)
+    setScreen('welcome')
+  }
   const [screen, setScreen] = useState<'welcome' | 'recover' | 'create' | 'wallet'>(
     openRecover ? 'recover' : openCreate ? 'create' : openWallet || openSettings || openHelp || openTxns || openDeposit ? 'wallet' : 'welcome',
   )
@@ -117,12 +158,12 @@ export default function App() {
         />
       )}
       {ready && screen === 'recover' && (
-        <Recover onCancel={() => setScreen('welcome')} onDone={(w, p) => { setPhrase(w); setPin(p); setScreen('wallet') }} />
+        <Recover onCancel={() => setScreen('welcome')} onDone={(w, p) => { enterWithWords(w, p) }} />
       )}
       {ready && screen === 'create' && (
-        <Create onDone={(w, p) => { setPhrase(w); setPin(p); setScreen('wallet') }} onBack={() => setScreen('welcome')} />
+        <Create onDone={(w, p) => { enterWithWords(w, p) }} onBack={() => setScreen('welcome')} />
       )}
-      {ready && screen === 'wallet' && <Wallet initialView={openTxns ? 'txns' : openHelp ? 'help' : openSettings ? 'settings' : 'home'} phrase={phrase} pin={pin} onPinChange={setPin} theme={theme} onTheme={setTheme} sounds={sounds} onSounds={changeSounds} onDelete={() => { setPhrase(null); setPin(null); setScreen('welcome') }} />}
+      {ready && screen === 'wallet' && <Wallet initialView={openTxns ? 'txns' : openHelp ? 'help' : openSettings ? 'settings' : 'home'} phrase={phrase} pin={pin} onPinChange={setPin} theme={theme} onTheme={setTheme} sounds={sounds} onSounds={changeSounds} onDelete={() => { leaveAll() }} token={session?.token ?? null} relogin={relogin} />}
     </div>
   )
 }

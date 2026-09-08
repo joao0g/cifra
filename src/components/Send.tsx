@@ -1,7 +1,10 @@
-/** Fluxo de envio em dois modais: valor com teclado próprio e confirmação com arraste. */
+/** Fluxo de envio em dois modais: valor com teclado próprio e confirmação com arraste.
+    Trilho real: POST /api/withdraw (Pix). O doc da tela é opcional — o servidor
+    usa o CPF do cadastro. */
 import { useEffect, useRef, useState } from 'react'
 import { brl } from '../lib/txns'
 import { playSound } from '../lib/sounds'
+import { apiAuthed, ApiError } from '../lib/auth'
 
 function onlyDigits(v: string): string {
   return v.replace(/\D/g, '')
@@ -22,7 +25,7 @@ function formatDoc(v: string): string {
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
 }
 
-export default function Send({ balance, onClose, onPaid, sounds }: { balance: number; onClose: () => void; onPaid: (amount: number, key: string, doc: string, fee?: number) => void; sounds: boolean }) {
+export default function Send({ balance, onClose, onPaid, sounds, token, relogin }: { balance: number; onClose: () => void; onPaid: (amount: number, key: string, doc: string, fee?: number) => void; sounds: boolean; token: string | null; relogin: () => Promise<string | null> }) {
   const [stage, setStage] = useState<'form' | 'confirm'>('form')
   const [key, setKey] = useState('')
   const [doc, setDoc] = useState('')
@@ -38,6 +41,9 @@ export default function Send({ balance, onClose, onPaid, sounds }: { balance: nu
   const drag = useRef<{ startX: number; width: number } | null>(null)
   const [closing, setClosing] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [error, setError] = useState('')
+  const tokenRef = useRef(token)
+  tokenRef.current = token
 
   const close = () => {
     if (closing) return
@@ -45,10 +51,8 @@ export default function Send({ balance, onClose, onPaid, sounds }: { balance: nu
     window.setTimeout(onClose, 300)
   }
 
-  const docDigits = onlyDigits(doc)
   const amount = cents / 100
-  const validDoc = docDigits.length === 11 || docDigits.length === 14
-  const canGo = key.trim().length > 0 && validDoc && cents > 0 && amount <= balance
+  const canGo = key.trim().length > 0 && cents >= 200 && amount <= balance
 
   /* Morph leve: só transform e opacidade (GPU), sem animar altura. */
   const morphTo = (next: 'form' | 'confirm') => {
@@ -157,6 +161,16 @@ export default function Send({ balance, onClose, onPaid, sounds }: { balance: nu
     }
   }
 
+  const friendlyError = (code: string): string => {
+    if (code === 'network_error') return 'Sem conexão com o servidor. Confira a internet e tente de novo.'
+    if (code === 'withdraw_disabled') return 'Envios pausados no momento. Tente mais tarde.'
+    if (code === 'tax_number_required') return 'Complete seu cadastro com um depósito primeiro.'
+    if (code === 'insufficient_balance') return 'Saldo insuficiente.'
+    if (code === 'invalid_amount') return 'Valor mínimo R$ 2, máximo R$ 6.000.'
+    if (code === 'rate_limited') return 'Muitas tentativas. Aguarde um minuto.'
+    return 'Não foi possível enviar agora. Tente de novo.'
+  }
+
   useEffect(() => {
     if (!dragging) return
     const move = (e: PointerEvent) => {
@@ -172,13 +186,24 @@ export default function Send({ balance, onClose, onPaid, sounds }: { balance: nu
         drag.current = null
         if (done) {
           setProgress(1)
-          setPaid(true)
-          playSound('enviar', sounds)
-          /* Mesmo trilho do saque Pix: debita e cai no extrato via onPaid. */
-          window.setTimeout(() => {
-            setClosing(true)
-            window.setTimeout(() => onPaid(amount, key.trim(), doc, 0), 300)
-          }, 2000)
+          setError('')
+          /* Envio real pelo trilho do saque Pix. */
+          ;(async () => {
+            try {
+              await apiAuthed('/api/withdraw', tokenRef.current, relogin, {
+                body: { amount: (cents / 100).toFixed(2), pixKey: key.trim() },
+              })
+              setPaid(true)
+              playSound('enviar', sounds)
+              window.setTimeout(() => {
+                setClosing(true)
+                window.setTimeout(() => onPaid(amount, key.trim(), doc, 0), 300)
+              }, 1200)
+            } catch (err) {
+              setProgress(0)
+              setError(err instanceof ApiError ? friendlyError(err.code) : 'Não foi possível enviar agora.')
+            }
+          })()
         } else {
           setProgress(0)
         }
@@ -192,7 +217,7 @@ export default function Send({ balance, onClose, onPaid, sounds }: { balance: nu
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', up)
     }
-  }, [dragging, progress, onPaid, onClose, amount, key, doc, sounds])
+  }, [dragging, progress, onPaid, onClose, amount, key, doc, sounds, cents, relogin])
 
   const grab = (e: React.PointerEvent) => {
     if (paid || !trackRef.current) return
@@ -343,6 +368,9 @@ export default function Send({ balance, onClose, onPaid, sounds }: { balance: nu
               <strong>Grátis</strong>
             </p>
           </div>
+          {error !== '' && (
+            <p className="dep-min" role="alert">{error}</p>
+          )}
           <div
             ref={trackRef}
             className={`send-swipe${paid ? ' is-paid' : ''}`}

@@ -1,86 +1,75 @@
-/** Depósito via Pix: valor + CPF/CNPJ com teclado próprio, QR + copia e cola.
-    Pagamento simulado (mock): após alguns segundos o saldo cai sozinho. */
-import { useEffect, useMemo, useRef, useState } from 'react'
+/** Depósito via Pix: valor + nome/CPF com teclado próprio, QR real + copia e cola.
+    Fluxo real contra o backend: POST /api/deposit cria o QR na Eulen e a tela
+    acompanha /api/deposit-status até aprovar (ou expirar). Sem simulação. */
+import { useEffect, useRef, useState } from 'react'
+import QRCode from 'qrcode'
 import { brl } from '../lib/txns'
+import { apiAuthed, ApiError } from '../lib/auth'
+import { isValidCpf, isValidFullName } from '../lib/validate'
 
-const MIN_CENTS = 10000
+const MIN_CENTS = 10000 // R$ 100,00 (piso do produto; backend aceita de R$ 5)
+const POLL_MS = 4000
+const POLL_MAX = 225 // ~15 min: QR Pix expira, volta e gera outro
 
 function onlyDigits(v: string): string {
   return v.replace(/\D/g, '')
 }
 
-function formatDoc(v: string): string {
-  const d = onlyDigits(v).slice(0, 14)
-  if (d.length <= 11) {
-    return d
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-  }
+function formatCpf(v: string): string {
+  const d = onlyDigits(v).slice(0, 11)
   return d
-    .replace(/(\d{2})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1/$2')
-    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
 }
 
-/* QR ilustrativo do mock: grade determinística a partir do código Pix. */
-function qrCells(code: string, size: number): boolean[] {
-  let seed = 2166136261
-  for (let i = 0; i < code.length; i++) {
-    seed ^= code.charCodeAt(i)
-    seed = Math.imul(seed, 16777619)
-  }
-  const cells: boolean[] = []
-  for (let i = 0; i < size * size; i++) {
-    seed = Math.imul(seed ^ (seed >>> 15), 2246822519)
-    seed = Math.imul(seed ^ (seed >>> 13), 3266489917)
-    cells.push(((seed ^= seed >>> 16) >>> 0) % 100 < 46)
-  }
-  const finder = (r: number, c: number) => {
-    const zones: Array<[number, number]> = [[0, 0], [0, size - 7], [size - 7, 0]]
-    for (const [zr, zc] of zones) {
-      const dr = r - zr
-      const dc = c - zc
-      if (dr >= 0 && dr < 7 && dc >= 0 && dc < 7) {
-        return dr === 0 || dr === 6 || dc === 0 || dc === 6 || (dr >= 2 && dr <= 4 && dc >= 2 && dc <= 4)
-      }
-    }
-    return null
-  }
-  return cells.map((v, i) => {
-    const f = finder(Math.floor(i / size), i % size)
-    return f === null ? v : f
-  })
+type Props = {
+  token: string | null
+  hasPii: boolean
+  onClose: () => void
+  onPaid: (amountCents: number, qrId: string) => void
+  relogin: () => Promise<string | null>
 }
 
-function pixCode(amount: number): string {
-  const tail = Math.random().toString(36).slice(2, 12).toUpperCase()
-  const value = amount.toFixed(2)
-  return `00020126580014BR.GOV.BCB.PIX0136CIFRA${tail}520400005303986540${value.length}${value}5802BR5913CIFRA6009SAOPAULO62070503***6304A1B2`
-}
-
-export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPaid: (amount: number) => void }) {
+export default function Deposit({ token, hasPii, onClose, onPaid, relogin }: Props) {
   const [stage, setStage] = useState<'form' | 'wait'>('form')
+  const [name, setName] = useState('')
   const [doc, setDoc] = useState('')
   const [cents, setCents] = useState(0)
-  const [target, setTarget] = useState<'doc' | 'amount'>('amount')
+  const [target, setTarget] = useState<'name' | 'doc' | 'amount'>('amount')
   const [closing, setClosing] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [arrived, setArrived] = useState(false)
   const [copied, setCopied] = useState(false)
   const [code, setCode] = useState('')
+  const [qrImg, setQrImg] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [expired, setExpired] = useState(false)
   const sheetRef = useRef<HTMLDivElement>(null)
   const skipClick = useRef(false)
   const timers = useRef<number[]>([])
+  const pollRef = useRef<number | null>(null)
+  const tokenRef = useRef(token)
+  const onPaidRef = useRef(onPaid)
+  tokenRef.current = token
+  onPaidRef.current = onPaid
 
   const amount = cents / 100
   const docDigits = onlyDigits(doc)
-  const validDoc = docDigits.length === 11 || docDigits.length === 14
-  const canGo = validDoc && cents >= MIN_CENTS
-  const cells = useMemo(() => qrCells(code, 21), [code])
+  const validName = hasPii || isValidFullName(name)
+  const validDoc = hasPii || (docDigits.length === 11 && isValidCpf(docDigits))
+  const canGo = !busy && validName && validDoc && cents >= MIN_CENTS
+
+  const stopPoll = () => {
+    if (pollRef.current !== null) {
+      window.clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }
 
   useEffect(() => () => {
+    stopPoll()
     timers.current.forEach((t) => window.clearTimeout(t))
   }, [])
 
@@ -90,6 +79,7 @@ export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPa
 
   const close = () => {
     if (closing) return
+    stopPoll()
     timers.current.forEach((t) => window.clearTimeout(t))
     timers.current = []
     setClosing(true)
@@ -119,36 +109,94 @@ export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPa
     })
   }
 
-  const goNext = () => {
-    if (leaving || !canGo) return
+  const startPoll = (id: string, amountCents: number) => {
+    stopPoll()
+    let n = 0
+    pollRef.current = window.setInterval(async () => {
+      n += 1
+      if (n > POLL_MAX) {
+        stopPoll()
+        setExpired(true)
+        return
+      }
+      try {
+        const r = await apiAuthed<{ status: string }>(
+          `/api/deposit-status?id=${encodeURIComponent(id)}`,
+          tokenRef.current, relogin, { method: 'GET', timeoutMs: 15000 },
+        )
+        if (r.data.status === 'approved') {
+          stopPoll()
+          setArrived(true)
+          later(1400, () => {
+            setClosing(true)
+            window.setTimeout(() => onPaidRef.current(amountCents, id), 300)
+          })
+        }
+      } catch {
+        /* mantém aguardando: a próxima rodada tenta de novo */
+      }
+    }, POLL_MS)
+  }
+
+  const friendlyError = (code: string): string => {
+    if (code === 'network_error') return 'Sem conexão com o servidor. Confira a internet e tente de novo.'
+    if (code === 'invalid_end_user') return 'Confira nome e CPF.'
+    if (code === 'invalid_amount') return 'Valor fora do permitido (R$ 5 a R$ 50.000).'
+    if (code === 'rate_limited') return 'Muitas tentativas. Aguarde um minuto.'
+    if (code === 'eulen_error' || code === 'eulen_invalid_response') return 'A operadora recusou agora. Tente de novo em instantes.'
+    return 'Não foi possível criar o QR agora. Tente de novo.'
+  }
+
+  const goNext = async () => {
+    if (leaving || !canGo || busy) return
     setLeaving(true)
-    setCode(pixCode(amount))
-    setCopied(false)
-    setArrived(false)
-    window.setTimeout(() => {
-      morphTo('wait')
-      /* Mock: o pagamento cai sozinho após 6s, fecha e credita o saldo. */
-      later(6000, () => {
-        setArrived(true)
-        later(1400, () => {
-          setClosing(true)
-          window.setTimeout(() => onPaid(amount), 300)
-        })
-      })
-    }, 150)
+    setError('')
+    setBusy(true)
+    try {
+      const r = await apiAuthed<{ qrId: string; qrCopyPaste: string; amountCents: number }>(
+        '/api/deposit', tokenRef.current, relogin,
+        {
+          body: {
+            amount: (cents / 100).toFixed(2),
+            ...(hasPii ? {} : { fullName: name.trim(), taxNumber: docDigits }),
+          },
+        },
+      )
+      const copyPaste = r.data.qrCopyPaste
+      const id = r.data.qrId
+      setCode(copyPaste)
+      setCopied(false)
+      setArrived(false)
+      setExpired(false)
+      try {
+        setQrImg(await QRCode.toDataURL(copyPaste, { width: 264, margin: 1 }))
+      } catch {
+        setQrImg('')
+      }
+      window.setTimeout(() => {
+        morphTo('wait')
+        startPoll(id, r.data.amountCents)
+      }, 150)
+    } catch (err) {
+      setError(err instanceof ApiError ? friendlyError(err.code) : 'Não foi possível criar o QR agora.')
+      setLeaving(false)
+    } finally {
+      setBusy(false)
+    }
   }
 
   const goBack = () => {
     if (leaving) return
-    timers.current.forEach((t) => window.clearTimeout(t))
-    timers.current = []
+    stopPoll()
     setArrived(false)
+    setExpired(false)
+    setError('')
     morphTo('form')
   }
 
   const press = (d: number) => {
     if (target === 'doc') {
-      setDoc((v) => formatDoc(`${onlyDigits(v)}${d}`.slice(0, 14)))
+      setDoc((v) => formatCpf(`${onlyDigits(v)}${d}`))
       return
     }
     setCents((c) => Math.min(c * 10 + d, 9999999999))
@@ -156,7 +204,7 @@ export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPa
 
   const press000 = () => {
     if (target === 'doc') {
-      setDoc((v) => formatDoc(`${onlyDigits(v)}000`.slice(0, 14)))
+      setDoc((v) => formatCpf(`${onlyDigits(v)}000`))
       return
     }
     setCents((c) => Math.min(c * 1000, 9999999999))
@@ -164,7 +212,7 @@ export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPa
 
   const back = () => {
     if (target === 'doc') {
-      setDoc((v) => formatDoc(onlyDigits(v).slice(0, -1)))
+      setDoc((v) => formatCpf(onlyDigits(v).slice(0, -1)))
       return
     }
     setCents((c) => Math.floor(c / 10))
@@ -189,7 +237,7 @@ export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPa
   const pasteDoc = async () => {
     try {
       const t = await navigator.clipboard.readText()
-      if (t) setDoc(formatDoc(t))
+      if (t) setDoc(formatCpf(t))
     } catch {
       /* sem acesso ao clipboard: digita pelo teclado Cifra */
     }
@@ -211,6 +259,9 @@ export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPa
     later(2000, () => setCopied(false))
   }
 
+  const nameInvalid = !hasPii && name.trim().length > 0 && !isValidFullName(name)
+  const docInvalid = !hasPii && docDigits.length === 11 && !isValidCpf(docDigits)
+
   return (
     <div className={closing ? 'send-overlay is-closing' : 'send-overlay'} role="dialog" aria-modal="true" aria-label="Depositar" onClick={close}>
       <div ref={sheetRef} className={leaving ? 'send-sheet is-leaving' : 'send-sheet'} onClick={(e) => e.stopPropagation()}>
@@ -226,34 +277,58 @@ export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPa
               <h2 className="settings__title">Depositar</h2>
             </div>
 
-            <div className="send-card">
-              <p className="send-k">QUEM VAI DEPOSITAR?</p>
-              <div className="send-docrow send-docrow--flat">
-                <button
-                  className={target === 'doc' ? 'send-docfield is-active' : 'send-docfield'}
-                  type="button"
-                  onClick={() => setTarget('doc')}
-                  aria-label="CPF ou CNPJ de quem depositará"
-                >
-                  {target === 'doc' && !doc && <span className="send-cursor send-cursor--doc" aria-hidden="true" />}
-                  <span className={doc ? 'send-docfield-tx' : 'send-docfield-ph'}>
-                    {doc || 'CPF/CNPJ de quem depositará'}
-                  </span>
-                  {target === 'doc' && doc && <span className="send-cursor send-cursor--doc" aria-hidden="true" />}
-                </button>
-                {target === 'doc' ? (
-                  <span className="send-doc-actions">
-                    <button className="send-mini" type="button" onClick={pasteDoc}>
-                      Colar
-                    </button>
-                  </span>
-                ) : (
-                  <span className="send-doc-actions is-hidden" aria-hidden="true">
-                    <span className="send-mini">Colar</span>
-                  </span>
+            {!hasPii && (
+              <div className="send-card">
+                <p className="send-k">SEUS DADOS (SÓ NA PRIMEIRA VEZ)</p>
+                <input
+                  className={target === 'name' ? 'send-input is-active' : 'send-input'}
+                  value={name}
+                  onChange={(e) => setName(e.target.value.slice(0, 140))}
+                  onFocus={() => setTarget('name')}
+                  onTouchStart={(e) => {
+                    e.preventDefault()
+                    e.currentTarget.focus({ preventScroll: true })
+                  }}
+                  placeholder="Nome completo"
+                  name="cifra-deposit-nome"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="words"
+                  spellCheck={false}
+                />
+                {nameInvalid && (
+                  <p className="dep-min" role="alert">Confira o nome.</p>
+                )}
+                <div className="send-docrow send-docrow--flat">
+                  <button
+                    className={target === 'doc' ? 'send-docfield is-active' : 'send-docfield'}
+                    type="button"
+                    onClick={() => setTarget('doc')}
+                    aria-label="Seu CPF"
+                  >
+                    {target === 'doc' && !doc && <span className="send-cursor send-cursor--doc" aria-hidden="true" />}
+                    <span className={doc ? 'send-docfield-tx' : 'send-docfield-ph'}>
+                      {doc || 'Seu CPF'}
+                    </span>
+                    {target === 'doc' && doc && <span className="send-cursor send-cursor--doc" aria-hidden="true" />}
+                  </button>
+                  {target === 'doc' ? (
+                    <span className="send-doc-actions">
+                      <button className="send-mini" type="button" onClick={pasteDoc}>
+                        Colar
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="send-doc-actions is-hidden" aria-hidden="true">
+                      <span className="send-mini">Colar</span>
+                    </span>
+                  )}
+                </div>
+                {docInvalid && (
+                  <p className="dep-min" role="alert">CPF inválido.</p>
                 )}
               </div>
-            </div>
+            )}
 
             <button
               className="send-amount"
@@ -286,13 +361,16 @@ export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPa
               </button>
             </div>
 
+            {error !== '' && (
+              <p className="dep-min" role="alert">{error}</p>
+            )}
             <button
               className="settings-modal-go send-cta"
               type="button"
               disabled={!canGo}
               onClick={goNext}
             >
-              Continuar
+              {busy ? 'Gerando QR…' : 'Continuar'}
             </button>
           </div>
         ) : (
@@ -305,9 +383,11 @@ export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPa
             <div className="send-confirm">
               <h2 className="send-confirm-title">Depositar {brl(amount)}</h2>
               <div className="dep-qr" role="img" aria-label="QR Code do Pix">
-                {cells.map((on, i) => (
-                  <span key={i} className={on ? 'dep-cell is-on' : 'dep-cell'} />
-                ))}
+                {qrImg !== '' ? (
+                  <img src={qrImg} alt="QR Code do Pix" width={231} height={231} />
+                ) : (
+                  <p className="dep-min">A gerar QR…</p>
+                )}
               </div>
               <div className="dep-code-row">
                 <p className="dep-code">{code}</p>
@@ -315,13 +395,22 @@ export default function Deposit({ onClose, onPaid }: { onClose: () => void; onPa
                   {copied ? 'Copiado' : 'Copiar'}
                 </button>
               </div>
-              <button
-                className={arrived ? 'dep-wait is-ok' : 'dep-wait'}
-                type="button"
-                disabled
-              >
-                {arrived ? 'Pagamento recebido' : 'Aguardando pagamento'}
-              </button>
+              {expired ? (
+                <>
+                  <p className="dep-min" role="alert">Este QR expirou. Volte e gere outro.</p>
+                  <button className="settings-modal-go send-cta" type="button" onClick={goBack}>
+                    Gerar novo QR
+                  </button>
+                </>
+              ) : (
+                <button
+                  className={arrived ? 'dep-wait is-ok' : 'dep-wait'}
+                  type="button"
+                  disabled
+                >
+                  {arrived ? 'Pagamento recebido' : 'Aguardando pagamento'}
+                </button>
+              )}
             </div>
           </>
         )}

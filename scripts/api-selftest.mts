@@ -66,8 +66,33 @@ check('secret errado recusado', !webhookSecretMatches('Basic outro-segredo', 'se
 check('sem Basic recusado', !webhookSecretMatches('Bearer segredo-16+chars!!', 'segredo-16+chars!!'))
 check('header não-string recusado', !webhookSecretMatches(undefined, 'segredo-16+chars!!'))
 
-if (failures > 0) {
-  console.log(`\n${failures} FALHA(S)`)
+// --- identidade Cifra (12 palavras → seed → Ed25519 determinístico) ---
+const { mnemonicToSeed, deriveIdentity, signNonce, b64decode } = await import('../src/lib/auth.ts')
+const { generateMnemonic, validateMnemonic } = await import('../src/lib/bip39.ts')
+const { verifyAsync } = await import('@noble/ed25519')
+const { isValidRawEd25519Key: serverKeyOk } = await import('../api/_lib/validate.ts')
+const words = generateMnemonic()
+check('mnemônico gerado válido', validateMnemonic(words))
+const seedA = mnemonicToSeed(words)
+const seedB = mnemonicToSeed(words)
+check('seed determinística (64B)', seedA.length === 64 && Buffer.from(seedA).equals(Buffer.from(seedB)))
+const idA = await deriveIdentity(seedA)
+const idB = await deriveIdentity(seedB)
+check('identidade determinística', idA.publicKeyB64 === idB.publicKeyB64)
+check('pubkey passa na régua do servidor (44 chars)', serverKeyOk(idA.publicKeyB64))
+const sig = await signNonce(idA.privateKeyB64, 'nonce-teste')
+const enc = new TextEncoder()
+check('assinatura verifica', await verifyAsync(b64decode(sig), enc.encode('nonce-teste'), b64decode(idA.publicKeyB64)))
+check('assinatura errada falha', !(await verifyAsync(b64decode(sig), enc.encode('outro'), b64decode(idA.publicKeyB64))))
+let threw = false
+try {
+  mnemonicToSeed(new Array(12).fill('xxxxx'))
+} catch {
+  threw = true
+}
+check('mnemônico inválido rejeitado', threw)
+
+if (failures > 0) {  console.log(`\n${failures} FALHA(S)`)
   process.exit(1)
 }
 console.log('\nSELFTEST OK')

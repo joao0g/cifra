@@ -50,6 +50,7 @@ Backend serverless no mesmo domínio do PWA (`/api/*`). Nenhuma chave sai do amb
 | `/api/eulen-webhook` | POST | `Basic <secret>` | deposit/withdraw/med; sempre 200 autenticado |
 | `/api/reconcile` | POST/GET | `Bearer CRON_SECRET` | Varre pendências >2 min e sincroniza com a API |
 | `/api/health` | GET | — | Liveness |
+| `/api/wallet` | GET | Bearer | Sync do PWA: saldo, walletId, hasPii, 20 depósitos + 20 saques (sem PII/valores sensíveis; chave Pix mascarada) |
 
 ## Fluxo do depósito
 
@@ -110,3 +111,23 @@ injeta automaticamente se a env `CRON_SECRET` existir).
 - Funções puras: `npx tsx scripts/api-selftest.mts`
 - Typecheck: `npm run typecheck` (inclui `api/**` via `tsconfig.node.json`)
 - Build completo: `npm run build`
+
+## PWA ligado ao backend (Fase 2)
+
+- **Identidade** (`src/lib/auth.ts`): 12 palavras → seed BIP39 (PBKDF2-HMAC-SHA512
+  2048r) → Ed25519 determinístico (`@noble/ed25519` + `@noble/hashes`, sem deps
+  nativas). Mesmas palavras em qualquer celular = mesma conta. Chave privada só
+  em memória, nunca persistida, nunca enviada (só pubkey raw 44 chars + assinatura).
+- **Sessão**: token opaco 30 dias em `localStorage` (`cifra-session-v1`); login no
+  Create/Recover, re-login silencioso em 401, logout revoga + limpa tudo.
+- **Sync** (`src/lib/sync.ts` + `GET /api/wallet`): pull ao abrir, após cada ação,
+  a cada 30s e ao voltar à tela. Servidor sempre vence (saldo + extrato reais;
+  mock local removido). Snapshot cifrado com o PIN (PBKDF2 100k → AES-GCM)
+  abre instantâneo até offline — payload sem palavras, sem token, sem PII.
+- **Depósito real**: nome+CPF só na 1ª vez (`hasPii`), QR verdadeiro renderizado
+  do `qrCopyPaste`, polling de `/api/deposit-status` até aprovar (±15 min) ou expirar.
+- **Saque/envio real**: trilho Pix via `POST /api/withdraw` (doc da tela virou
+  opcional — o servidor usa o CPF do cadastro). Trilho Cripto desativado com aviso
+  honesto: não há on-chain no backend, nada simulado.
+- **Sem backend** (Neon/deploy pendentes): o app entra offline com banner + retry;
+  nenhuma função é simulada.

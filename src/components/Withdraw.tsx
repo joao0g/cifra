@@ -1,10 +1,10 @@
-/** Saque: lâmina modal com segmented Pix | Cripto. O Pix segue o padrão do
-    enviar (chave + CPF + valor no teclado, revisão e arraste para confirmar).
-    O Cripto recebe endereço + moeda com cotação, revisão com taxas e o mesmo
-    arraste para confirmar. Mock, sem backend. */
+/** Saque: lâmina modal com segmented Pix | Cripto. O Pix é real (POST /api/withdraw,
+    arraste para confirmar). O Cripto está desativado com aviso honesto: não há
+    trilho on-chain no backend — nada simulado. */
 import { useEffect, useRef, useState } from 'react'
 import { brl } from '../lib/txns'
 import { playSound } from '../lib/sounds'
+import { apiAuthed, ApiError } from '../lib/auth'
 import CoinIcon from './CoinIcon'
 import { COINS, CRYPTO_FEE_RATE, cryptoQty, fetchCryptoBrl, formatCrypto, type CoinSymbol } from '../lib/crypto'
 
@@ -39,7 +39,7 @@ function formatDoc(v: string): string {
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
 }
 
-export default function Withdraw({ balance, onClose, onPaid, sounds }: { balance: number; onClose: () => void; onPaid: (amount: number, fee?: number) => void; sounds: boolean }) {
+export default function Withdraw({ balance, onClose, onPaid, sounds, token, relogin }: { balance: number; onClose: () => void; onPaid: (amount: number, fee?: number) => void; sounds: boolean; token: string | null; relogin: () => Promise<string | null> }) {
   const [rail, setRail] = useState<'pix' | 'cripto'>('pix')
   const [stage, setStage] = useState<'form' | 'confirm'>('form')
   const [key, setKey] = useState('')
@@ -61,6 +61,9 @@ export default function Withdraw({ balance, onClose, onPaid, sounds }: { balance
   const drag = useRef<{ startX: number; width: number } | null>(null)
   const [closing, setClosing] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [error, setError] = useState('')
+  const tokenRef = useRef(token)
+  tokenRef.current = token
 
   const close = () => {
     if (closing) return
@@ -68,12 +71,11 @@ export default function Withdraw({ balance, onClose, onPaid, sounds }: { balance
     window.setTimeout(onClose, 300)
   }
 
-  const docDigits = onlyDigits(doc)
   const amount = cents / 100
-  const validDoc = docDigits.length === 11 || docDigits.length === 14
-  const canGoPix = key.trim().length > 0 && validDoc && cents > 0 && amount <= balance
+  // O backend usa o CPF do cadastro (perfil), não o campo da tela: doc é opcional.
+  const canGoPix = key.trim().length > 0 && cents >= 200 && amount <= balance
   const validAddr = isValidAddress(coin, addr)
-  const canGoCrypto = validAddr && cents > 0 && amount <= balance
+  const canGoCrypto = false // sem trilho on-chain no backend: nunca confirma
   const showAddrHint = addr.trim().length > 0 && !validAddr
   const canGo = rail === 'pix' ? canGoPix : canGoCrypto
   const isCrypto = rail === 'cripto'
@@ -229,6 +231,16 @@ export default function Withdraw({ balance, onClose, onPaid, sounds }: { balance
     }
   }
 
+  const friendlyError = (code: string): string => {
+    if (code === 'network_error') return 'Sem conexão com o servidor. Confira a internet e tente de novo.'
+    if (code === 'withdraw_disabled') return 'Saque pausado no momento. Tente mais tarde.'
+    if (code === 'tax_number_required') return 'Complete seu cadastro com um depósito primeiro.'
+    if (code === 'insufficient_balance') return 'Saldo insuficiente.'
+    if (code === 'invalid_amount') return 'Valor mínimo R$ 2, máximo R$ 6.000.'
+    if (code === 'rate_limited') return 'Muitas tentativas. Aguarde um minuto.'
+    return 'Não foi possível sacar agora. Tente de novo.'
+  }
+
   useEffect(() => {
     if (!dragging) return
     const move = (e: PointerEvent) => {
@@ -243,15 +255,29 @@ export default function Withdraw({ balance, onClose, onPaid, sounds }: { balance
         const done = progress >= 0.88
         drag.current = null
         if (done) {
+          if (rail !== 'pix') {
+            setProgress(0)
+            return
+          }
           setProgress(1)
-          setPaid(true)
-          playSound('enviar', sounds)
-          /* Mock: o saque cai sozinho, fecha e debita o saldo (cripto leva a taxa). */
-          const feeDue = rail === 'cripto' ? amount * CRYPTO_FEE_RATE : 0
-          window.setTimeout(() => {
-            setClosing(true)
-            window.setTimeout(() => onPaid(amount, feeDue), 300)
-          }, 2000)
+          setError('')
+          /* Saque real: o débito e o payout acontecem no servidor. */
+          ;(async () => {
+            try {
+              await apiAuthed('/api/withdraw', tokenRef.current, relogin, {
+                body: { amount: (cents / 100).toFixed(2), pixKey: key.trim() },
+              })
+              setPaid(true)
+              playSound('enviar', sounds)
+              window.setTimeout(() => {
+                setClosing(true)
+                window.setTimeout(() => onPaid(amount, 0), 300)
+              }, 1200)
+            } catch (err) {
+              setProgress(0)
+              setError(err instanceof ApiError ? friendlyError(err.code) : 'Não foi possível sacar agora.')
+            }
+          })()
         } else {
           setProgress(0)
         }
@@ -265,7 +291,7 @@ export default function Withdraw({ balance, onClose, onPaid, sounds }: { balance
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', up)
     }
-  }, [dragging, progress, onPaid, amount, rail, sounds])
+  }, [dragging, progress, onPaid, amount, rail, sounds, cents, key, relogin])
 
   const grab = (e: React.PointerEvent) => {
     if (paid || !trackRef.current) return
@@ -314,6 +340,9 @@ export default function Withdraw({ balance, onClose, onPaid, sounds }: { balance
               </button>
             </div>
           </>
+        )}
+        {rail === 'cripto' && stage === 'form' && (
+          <p className="dep-min" role="note">Saque em cripto em breve — hoje o saque é via Pix.</p>
         )}
 
         {stage === 'form' ? (
@@ -624,6 +653,9 @@ export default function Withdraw({ balance, onClose, onPaid, sounds }: { balance
                     <strong>{brl(balance)}</strong>
                   </p>
                 </div>
+                {error !== '' && (
+                  <p className="dep-min" role="alert">{error}</p>
+                )}
                 <div
                   ref={trackRef}
                   className={`send-swipe${paid ? ' is-paid' : ''}`}
