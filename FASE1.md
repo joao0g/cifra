@@ -131,3 +131,19 @@ injeta automaticamente se a env `CRON_SECRET` existir).
   honesto: não há on-chain no backend, nada simulado.
 - **Sem backend** (Neon/deploy pendentes): o app entra offline com banner + retry;
   nenhuma função é simulada.
+
+## Entrar de novo (fluxo de retorno, padrão Ledger)
+
+- **Primeira vez**: Criar (12 palavras novas) ou Recuperar (12 existentes) → PIN de
+  4 dígitos → login (challenge/verify) → sessão cifrada com o PIN no aparelho.
+- **Outras vezes**: o app abre direto no desbloqueio por PIN (sem welcome, sem
+  palavras). PIN correto → carteira; PIN errado → erro genérico (não distingue
+  "sem conta" de "PIN errado").
+- **Anti-força-bruta local**: 10 erros de PIN apagam sessão + snapshot do aparelho;
+  só volta com as 12 palavras (recuperar). Palavras nunca ficam no aparelho.
+- **Sessão deslizante**: uso ativo renova +30 dias sozinho (faltando <7 dias);
+  parado expira e pede as palavras de novo. Logout revoga no servidor + apaga tudo.
+- **Troca de PIN** (Configurações): recifra sessão + snapshot com o PIN novo antes
+  de trocar; PIN atual errado bloqueia a troca.
+- **Migração**: instalações antigas com sessão em texto puro migram no primeiro
+  desbloqueio (qualquer PIN, uma vez) e a v1 é aposentada.

@@ -9,8 +9,11 @@ import { sha512 } from '@noble/hashes/sha2.js'
 import { validateMnemonic } from './bip39'
 
 const DOMAIN = 'cifra-ed25519-v1'
-const SESSION_KEY = 'cifra-session-v1'
+const SESSION_KEY = 'cifra-session-v1' // legado (texto puro): só leitura p/ migração
+const SESSION2_KEY = 'cifra-session-v2' // sessão cifrada com o PIN (AES-GCM)
 const SNAP_KEY = 'cifra-snap-v1'
+const TRIES_KEY = 'cifra-unlock-tries'
+const MAX_UNLOCK_TRIES = 10 // errou 10x: apaga segredos do aparelho (recupera com as palavras)
 const API_TIMEOUT_MS = 20_000
 
 const te = new TextEncoder()
@@ -107,7 +110,9 @@ export async function apiFetch<T>(path: string, opts?: {
 
 export type Session = { token: string; walletId: string; savedAt: number }
 
-export function loadSession(): Session | null {
+/* Sessão legada em texto puro (v1): só para migração de instalações antigas.
+   Instalações novas nunca escrevem aqui. */
+export function loadLegacySession(): Session | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY)
     if (!raw) return null
@@ -119,15 +124,7 @@ export function loadSession(): Session | null {
   }
 }
 
-export function saveSession(s: Session): void {
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(s))
-  } catch {
-    /* sem armazenamento: sessão vive só em memória nesta abertura */
-  }
-}
-
-export function clearSession(): void {
+function deleteLegacySession(): void {
   try {
     localStorage.removeItem(SESSION_KEY)
   } catch {
@@ -135,7 +132,117 @@ export function clearSession(): void {
   }
 }
 
-/** Login completo: challenge → assina → verify → guarda sessão. */
+/** Há segredo de sessão neste aparelho (v2 cifrada ou v1 legada)? */
+export function hasStoredSession(): boolean {
+  try {
+    return localStorage.getItem(SESSION2_KEY) !== null || localStorage.getItem(SESSION_KEY) !== null
+  } catch {
+    return false
+  }
+}
+
+/** Persiste a sessão cifrada com o PIN e aposenta a v1 em texto puro. */
+export async function persistSession(pin: string, s: Session): Promise<void> {
+  saveSnapshotBlob2(await encryptSnapshot(pin, s))
+  deleteLegacySession()
+}
+
+function saveSnapshotBlob2(blob: string): void {
+  try {
+    localStorage.setItem(SESSION2_KEY, blob)
+  } catch {
+    /* sem armazenamento: sessão vive só em memória nesta abertura */
+  }
+}
+
+/** Lê a sessão com o PIN. Null = PIN errado ou sem sessão (não distingue). */
+export async function loadSessionEncrypted(pin: string): Promise<Session | null> {
+  let blob: string | null = null
+  try {
+    blob = localStorage.getItem(SESSION2_KEY)
+  } catch {
+    return null
+  }
+  if (!blob) return null
+  const s = await decryptSnapshot<Session>(pin, blob)
+  if (!s || typeof s.token !== 'string') return null
+  return s
+}
+
+/* Contador de tentativas de PIN (anti-força-bruta local). */
+export function getUnlockTries(): number {
+  try {
+    const n = Number(localStorage.getItem(TRIES_KEY))
+    return Number.isInteger(n) && n > 0 ? n : 0
+  } catch {
+    return 0
+  }
+}
+
+export function resetUnlockTries(): void {
+  try {
+    localStorage.removeItem(TRIES_KEY)
+  } catch {
+    /* sem armazenamento */
+  }
+}
+
+/** Registra erro de PIN. Devolve tentativas restantes; zerou = apaga tudo. */
+export function bumpUnlockTries(): number {
+  const n = getUnlockTries() + 1
+  try {
+    if (n >= MAX_UNLOCK_TRIES) {
+      wipeDeviceSecrets()
+      return 0
+    }
+    localStorage.setItem(TRIES_KEY, String(n))
+  } catch {
+    /* sem armazenamento */
+  }
+  return Math.max(0, MAX_UNLOCK_TRIES - n)
+}
+
+/** Apaga TODOS os segredos do aparelho (sair + anti-bruteforce). Palavras nunca ficam aqui. */
+export function wipeDeviceSecrets(): void {
+  for (const k of [SESSION_KEY, SESSION2_KEY, SNAP_KEY, TRIES_KEY]) {
+    try {
+      localStorage.removeItem(k)
+    } catch {
+      /* segue apagando o resto */
+    }
+  }
+}
+
+/** Troca o PIN dos segredos guardados (sessão v2 + snapshot). Devolve false se
+    o PIN atual não abrir algo (nada é alterado pela metade). */
+export async function reencryptSecrets(oldPin: string, newPin: string): Promise<boolean> {
+  let sBlob: string | null = null
+  let snap: string | null = null
+  try {
+    sBlob = localStorage.getItem(SESSION2_KEY)
+    snap = localStorage.getItem(SNAP_KEY)
+  } catch {
+    return false
+  }
+  if (oldPin === newPin) return true
+  try {
+    if (sBlob) {
+      const s = await decryptSnapshot<Session>(oldPin, sBlob)
+      if (!s) return false
+      await persistSession(newPin, s)
+    }
+    if (snap) {
+      const o = await decryptSnapshot<unknown>(oldPin, snap)
+      if (o !== null && o !== undefined) saveSnapshotBlob(await encryptSnapshot(newPin, o))
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Login completo: challenge → assina → verify. NÃO persiste (chamador guarda
+    cifrado com o PIN via persistSession). Palavras nunca saem daqui. */
 export async function loginWithWords(words: string[]): Promise<{ token: string; walletId: string; isNew: boolean }> {
   const seed = mnemonicToSeed(words)
   const id = await deriveIdentity(seed)
@@ -148,13 +255,12 @@ export async function loginWithWords(words: string[]): Promise<{ token: string; 
     method: 'POST',
     body: { publicKey: id.publicKeyB64, nonce: ch.data.nonce, signature: sig },
   })
-  saveSession({ token: vf.data.token, walletId: vf.data.walletId ?? '', savedAt: Date.now() })
   return vf.data
 }
 
 /** Logout: revoga no servidor (best-effort) e apaga tudo local. */
 export async function logoutEverywhere(): Promise<void> {
-  const s = loadSession()
+  const s = loadLegacySession()
   if (s) {
     try {
       await apiFetch('/api/logout', { method: 'POST', token: s.token, timeoutMs: 8000 })
@@ -162,12 +268,7 @@ export async function logoutEverywhere(): Promise<void> {
       /* servidor fora: a limpeza local já basta (token expira sozinho) */
     }
   }
-  clearSession()
-  try {
-    localStorage.removeItem(SNAP_KEY)
-  } catch {
-    /* nada a limpar */
-  }
+  wipeDeviceSecrets()
 }
 
 /** Chamada autenticada com retry único de sessão: 401 → relogin (palavras ainda

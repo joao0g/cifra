@@ -92,6 +92,13 @@ try {
 }
 check('mnemônico inválido rejeitado', threw)
 
+// --- snapshot/sessão cifrada com PIN (AES-GCM; WebCrypto também existe no node) ---
+const { encryptSnapshot, decryptSnapshot } = await import('../src/lib/auth.ts')
+const snapBlob = await encryptSnapshot('1234', { token: 'abc', n: 1 })
+check('snapshot cifra', typeof snapBlob === 'string' && snapBlob.length > 50)
+check('snapshot abre com o PIN', JSON.stringify(await decryptSnapshot('1234', snapBlob)) === JSON.stringify({ token: 'abc', n: 1 }))
+check('PIN errado devolve null', (await decryptSnapshot('9999', snapBlob)) === null)
+
 if (failures > 0) {  console.log(`\n${failures} FALHA(S)`)
   process.exit(1)
 }

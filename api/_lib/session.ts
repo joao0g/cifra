@@ -35,21 +35,27 @@ export type SessionRow = {
   public_key: string
 }
 
-/** Valida a sessão e devolve o usuário. NULL se inválida/expirada/revogada. */
+/** Valida a sessão e devolve o usuário. NULL se inválida/expirada/revogada.
+    Deslizante: faltando <7 dias, renova +30 dias (uso ativo nunca pede as
+    palavras de novo; parado expira sozinho). */
 export async function getSessionUser(req: VercelRequest): Promise<SessionRow | null> {
   const token = extractBearer(req)
   if (!token) return null
   const th = hashToken(token)
   const sql = getDb()
   const rows = await sql`
-    SELECT s.user_id, u.wallet_id, u.public_key, u.status
+    SELECT s.user_id, u.wallet_id, u.public_key, u.status, s.expires_at
     FROM sessions s JOIN users u ON u.id = s.user_id
     WHERE s.token_hash = ${th}
       AND s.revoked_at IS NULL
       AND s.expires_at > now()
     LIMIT 1`
-  const r = rows[0] as (SessionRow & { status: string }) | undefined
+  const r = rows[0] as (SessionRow & { status: string; expires_at: string }) | undefined
   if (!r || r.status !== 'active') return null
+  const expMs = Date.parse(String(r.expires_at))
+  if (Number.isFinite(expMs) && expMs - Date.now() < 7 * 24 * 3600 * 1000) {
+    await sql`UPDATE sessions SET expires_at = now() + interval '30 days' WHERE token_hash = ${th}`.catch(() => null)
+  }
   return { user_id: r.user_id, wallet_id: r.wallet_id, public_key: r.public_key }
 }
 

@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Create from './components/Create'
 import InstallGate from './components/InstallGate'
 import LiquidLogo from './components/LiquidLogo'
+import PinSetup from './components/PinSetup'
 import Recover from './components/Recover'
 import Wallet from './components/Wallet'
 import Welcome from './components/Welcome'
-import { loadSession, loginWithWords, logoutEverywhere } from './lib/auth'
+import { bumpUnlockTries, hasStoredSession, loadLegacySession, loadSessionEncrypted, loginWithWords, logoutEverywhere, persistSession, reencryptSecrets, resetUnlockTries } from './lib/auth'
 import { loadSoundsEnabled, saveSoundsEnabled, preloadSounds, unlockAudio } from './lib/sounds'
 
 // Fluxo: um ciclo do loader (3.8s) e a welcome entra por cima. Hooks de teste
@@ -45,20 +46,24 @@ export default function App() {
   // ?pin=1234 só em DEV, para testar a troca de PIN nas configurações.
   const [phrase, setPhrase] = useState<string[] | null>(null)
   const [pin, setPin] = useState<string | null>(() => (allowTest ? params.get('pin') : null))
-  // Sessão do backend (token opaco). Carrega a salva; entra offline se o servidor falhar.
-  const [session, setSession] = useState<{ token: string; walletId: string } | null>(() => {
-    const s = loadSession()
-    return s ? { token: s.token, walletId: s.walletId } : null
-  })
+  // Sessão do backend (token opaco, só em memória). Na abertura, quem já tem
+  // conta cai em 'unlock' (PIN); quem não tem, em 'welcome'.
+  const [session, setSession] = useState<{ token: string; walletId: string } | null>(null)
+  const [unlockTick, setUnlockTick] = useState(0)
+  const [unlockLeft, setUnlockLeft] = useState<number | null>(null)
   const phraseRef = useRef<string[] | null>(null)
+  const pinRef = useRef<string | null>(null)
   phraseRef.current = phrase
+  pinRef.current = pin
 
   /* Re-login silencioso com as palavras em memória (sessão expirada). */
   const relogin = useCallback(async (): Promise<string | null> => {
     const w = phraseRef.current
-    if (!w) return null
+    const p = pinRef.current
+    if (!w || !p) return null
     try {
       const r = await loginWithWords(w)
+      await persistSession(p, { token: r.token, walletId: r.walletId, savedAt: Date.now() })
       setSession({ token: r.token, walletId: r.walletId })
       return r.token
     } catch {
@@ -71,11 +76,64 @@ export default function App() {
     setPin(p)
     try {
       const r = await loginWithWords(w)
+      try {
+        await persistSession(p, { token: r.token, walletId: r.walletId, savedAt: Date.now() })
+      } catch {
+        /* sem armazenamento: sessão vive só em memória nesta abertura */
+      }
       setSession({ token: r.token, walletId: r.walletId })
     } catch {
       /* sem servidor: entra offline, o banner da carteira oferece retry */
     }
     setScreen('wallet')
+  }
+
+  /* Desbloqueio com PIN (volta ao app). v2 cifrada; v1 legada migra uma vez.
+     10 erros = apaga tudo do aparelho, só volta com as palavras. */
+  const unlockWithPin = async (entered: string) => {
+    const s2 = await loadSessionEncrypted(entered)
+    if (s2) {
+      resetUnlockTries()
+      setUnlockLeft(null)
+      setPin(entered)
+      setSession({ token: s2.token, walletId: s2.walletId })
+      setScreen('wallet')
+      return
+    }
+    const legacy = loadLegacySession()
+    if (legacy) {
+      try {
+        await persistSession(entered, legacy)
+      } catch {
+        /* sem armazenamento: segue só em memória */
+      }
+      resetUnlockTries()
+      setUnlockLeft(null)
+      setPin(entered)
+      setSession({ token: legacy.token, walletId: legacy.walletId })
+      setScreen('wallet')
+      return
+    }
+    const left = bumpUnlockTries()
+    if (left <= 0) {
+      setScreen('welcome')
+    } else {
+      setUnlockLeft(left)
+      setUnlockTick((t) => t + 1)
+    }
+  }
+
+  /* Troca de PIN (Configurações): recifra sessão + snapshot antes de trocar. */
+  const changePin = async (next: string) => {
+    const cur = pinRef.current
+    if (cur && cur !== next) {
+      try {
+        await reencryptSecrets(cur, next)
+      } catch {
+        /* falhou: mantém segredos antigos, snapshot rebaixa para re-pull */
+      }
+    }
+    setPin(next)
   }
 
   const leaveAll = async () => {
@@ -85,8 +143,8 @@ export default function App() {
     setSession(null)
     setScreen('welcome')
   }
-  const [screen, setScreen] = useState<'welcome' | 'recover' | 'create' | 'wallet'>(
-    openRecover ? 'recover' : openCreate ? 'create' : openWallet || openSettings || openHelp || openTxns || openDeposit ? 'wallet' : 'welcome',
+  const [screen, setScreen] = useState<'welcome' | 'recover' | 'create' | 'wallet' | 'unlock'>(
+    openRecover ? 'recover' : openCreate ? 'create' : openWallet || openSettings || openHelp || openTxns || openDeposit ? 'wallet' : hasStoredSession() ? 'unlock' : 'welcome',
   )
   /* Barreira do PWA: some sozinha ao instalar (appinstalled) ou ao abrir
      pelo ícone da tela de início. */
@@ -157,13 +215,26 @@ export default function App() {
           onCreate={() => setScreen('create')}
         />
       )}
+      {ready && screen === 'unlock' && (
+        <PinSetup
+          key={unlockTick}
+          title="Bem-vindo de volta"
+          sub="Digite seu PIN para entrar."
+          ctaLabel="Entrar"
+          workingLabel="Desbloqueando…"
+          doneLabel="Pronto"
+          notice={unlockLeft !== null ? `PIN incorreto. Restam ${unlockLeft} tentativas.` : null}
+          onBack={() => setScreen('welcome')}
+          onDone={(entered) => { unlockWithPin(entered) }}
+        />
+      )}
       {ready && screen === 'recover' && (
         <Recover onCancel={() => setScreen('welcome')} onDone={(w, p) => { enterWithWords(w, p) }} />
       )}
       {ready && screen === 'create' && (
         <Create onDone={(w, p) => { enterWithWords(w, p) }} onBack={() => setScreen('welcome')} />
       )}
-      {ready && screen === 'wallet' && <Wallet initialView={openTxns ? 'txns' : openHelp ? 'help' : openSettings ? 'settings' : 'home'} phrase={phrase} pin={pin} onPinChange={setPin} theme={theme} onTheme={setTheme} sounds={sounds} onSounds={changeSounds} onDelete={() => { leaveAll() }} token={session?.token ?? null} relogin={relogin} />}
+      {ready && screen === 'wallet' && <Wallet initialView={openTxns ? 'txns' : openHelp ? 'help' : openSettings ? 'settings' : 'home'} phrase={phrase} pin={pin} onPinChange={(next) => { changePin(next) }} theme={theme} onTheme={setTheme} sounds={sounds} onSounds={changeSounds} onDelete={() => { leaveAll() }} token={session?.token ?? null} relogin={relogin} />}
     </div>
   )
 }
