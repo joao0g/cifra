@@ -136,9 +136,8 @@ injeta automaticamente se a env `CRON_SECRET` existir).
 
 - **Primeira vez**: Criar (12 palavras novas) ou Recuperar (12 existentes) → PIN de
   4 dígitos → login (challenge/verify) → sessão cifrada com o PIN no aparelho.
-- **Outras vezes**: o app abre direto no desbloqueio por PIN (sem welcome, sem
-  palavras). PIN correto → carteira; PIN errado → erro genérico (não distingue
-  "sem conta" de "PIN errado").
+- **Outras vezes**: o app abre direto no desbloqueio — loader → PIN seco (só slots
+  + teclado, entra sozinho no 4º dígito) → carteira. Nada mais, sem títulos nem botões.
 - **Anti-força-bruta local**: 10 erros de PIN apagam sessão + snapshot do aparelho;
   só volta com as 12 palavras (recuperar). Palavras nunca ficam no aparelho.
 - **Sessão deslizante**: uso ativo renova +30 dias sozinho (faltando <7 dias);

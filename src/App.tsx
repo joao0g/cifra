@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Create from './components/Create'
 import InstallGate from './components/InstallGate'
 import LiquidLogo from './components/LiquidLogo'
-import PinSetup from './components/PinSetup'
 import Recover from './components/Recover'
+import Unlock from './components/Unlock'
 import Wallet from './components/Wallet'
 import Welcome from './components/Welcome'
 import { bumpUnlockTries, hasStoredSession, loadLegacySession, loadSessionEncrypted, loginWithWords, logoutEverywhere, persistSession, reencryptSecrets, resetUnlockTries } from './lib/auth'
@@ -216,15 +216,9 @@ export default function App() {
         />
       )}
       {ready && screen === 'unlock' && (
-        <PinSetup
+        <Unlock
           key={unlockTick}
-          title="Bem-vindo de volta"
-          sub="Digite seu PIN para entrar."
-          ctaLabel="Entrar"
-          workingLabel="Desbloqueando…"
-          doneLabel="Pronto"
-          notice={unlockLeft !== null ? `PIN incorreto. Restam ${unlockLeft} tentativas.` : null}
-          onBack={() => setScreen('welcome')}
+          notice={unlockLeft === null ? null : unlockLeft > 3 ? 'PIN incorreto.' : `PIN incorreto. Restam ${unlockLeft}.`}
           onDone={(entered) => { unlockWithPin(entered) }}
         />
       )}
