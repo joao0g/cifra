@@ -1134,6 +1134,13 @@ textarea {
   color: #1d3a08;
 }
 
+/* Ação pausada (kill-switch operacional): visivelmente desligada, sem clique. */
+.wallet__tile:disabled {
+  opacity: 0.45;
+  filter: saturate(0.4);
+  cursor: not-allowed;
+}
+
 /* Configurações: topo com voltar e cartão branco de opções. */
 .settings__title {
   margin: 0;
@@ -4164,6 +4171,17 @@ textarea {
   color: #8a8a93;
 }
 
+/* dep-min como botão (retry de sync): zera o estilo nativo, vira texto tocável. */
+button.dep-min {
+  background: none;
+  border: 0;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .dep-qr {
   flex: none;
   display: grid;
@@ -4174,6 +4192,19 @@ textarea {
   padding: 12px;
   background: #fff;
   border-radius: 18px;
+}
+
+/* QR real (img) e avisos ocupam a grade inteira — o grid 21 cols era do QR ilustrativo. */
+.dep-qr > img,
+.dep-qr > p {
+  grid-column: 1 / -1;
+}
+
+.dep-qr > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
 }
 
 .dep-cell {
