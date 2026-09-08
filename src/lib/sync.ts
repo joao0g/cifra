@@ -13,10 +13,13 @@ export type ServerWithdrawal = {
 }
 export type WalletState = {
   walletId: string; balanceCents: number; hasPii: boolean;
+  depositsEnabled: boolean; withdrawalsEnabled: boolean;
   deposits: ServerDeposit[]; withdrawals: ServerWithdrawal[]
 }
 export type SyncSnapshot = {
-  walletId: string; balanceCents: number; hasPii: boolean; txns: Txn[]; ts: number
+  walletId: string; balanceCents: number; hasPii: boolean;
+  depositsEnabled: boolean; withdrawalsEnabled: boolean;
+  txns: Txn[]; ts: number
 }
 
 export async function fetchWallet(token: string): Promise<WalletState> {

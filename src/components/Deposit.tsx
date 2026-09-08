@@ -140,6 +140,7 @@ export default function Deposit({ token, hasPii, onClose, onPaid, relogin }: Pro
 
   const friendlyError = (code: string): string => {
     if (code === 'network_error') return 'Sem conexão com o servidor. Confira a internet e tente de novo.'
+    if (code === 'deposits_paused') return 'Depósitos pausados pela operadora no momento. Tente mais tarde.'
     if (code === 'invalid_end_user') return 'Confira nome e CPF.'
     if (code === 'invalid_amount') return 'Valor fora do permitido (R$ 5 a R$ 50.000).'
     if (code === 'rate_limited') return 'Muitas tentativas. Aguarde um minuto.'

@@ -72,11 +72,22 @@ enviar DePix da carteira parceira para o `depositAddress`; o webhook `sent/compl
 `refunded/failed/returned` no webhook estornam o débito do usuário. Enquanto o funding não
 estiver automatizado, `EULEN_WITHDRAW_ENABLED` fica ausente → 503.
 
-## Alerta operacional (06/09/2026)
+## Alerta operacional (06/09/2026, atualizado 07–08/09)
 
-**Liquid Network pausada pela Eulen (incidente de segurança)**: depósitos Pix→DePix e saques
-DePix→Pix na rede Liquid estão DESLIGADOS (`NETWORK_WALLET_UNAVAILABLE`). Arkade existe mas é
-beta — não usar em produção. Acompanhar docs.eulen.app até reabrirem.
+**Liquid Network pausada pela Eulen (incidente de segurança `01a07718`)**: depósitos Pix→DePix e saques
+DePix→Pix na rede Liquid estão DESLIGADOS. Lastro do DePix íntegro (100%, sem impacto) — é pausa
+operacional da rede, não quebra de lastro. Arkade existe mas é beta — proibido em produção
+(orientação expressa da Eulen). Acompanhar docs.eulen.app + canal oficial até reabrirem.
+
+Postura da Cifra (alinhada ao aviso de segurança da Eulen):
+- `EULEN_DEPOSITS_ENABLED` / `EULEN_WITHDRAW_ENABLED` ausentes ou ≠ `true` = rotas
+  respondem 503 e o app desabilita as ações com banner honesto. Nenhum QR é criado,
+  nenhum dinheiro entra no limbo. `/api/wallet` expõe as flags (`depositsEnabled`,
+  `withdrawalsEnabled`).
+- Nada é reenviado: sem retry no `POST /deposit`, reconcile só confirma na API.
+- O aviso "não mexam em nós/keys/infra Liquid" não nos atinge: não operamos nó
+  nenhum; Vercel/Neon seguem normal. Nenhuma chave/seed é importada em lugar algum.
+- Retomada: Eulen avisa → ligamos as flags → depósitos/saques voltam sem mudar código.
 
 ## Variáveis de ambiente (dashboard Vercel + `.env.local` para dev)
 
@@ -88,6 +99,7 @@ beta — não usar em produção. Acompanhar docs.eulen.app até reabrirem.
 | `CRON_SECRET` | Protege `/api/reconcile` |
 | `PII_ENCRYPTION_KEY` | Hex 32 bytes (`openssl rand -hex 32`) — cifra PII |
 | `EULEN_WITHDRAW_ENABLED` | Só `true` quando o funding DePix do saque estiver pronto |
+| `EULEN_DEPOSITS_ENABLED` | Kill-switch de depósitos: só `true` com a rede DePix operante |
 
 ## Setup do banco (Neon free)
 

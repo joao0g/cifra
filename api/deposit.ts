@@ -27,6 +27,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(429).json({ ok: false, error: 'rate_limited' })
   }
 
+  // Kill-switch operacional (ex.: rede Liquid pausada pela Eulen): sem a flag,
+  // nenhum QR é criado — dinheiro do usuário nunca entra no limbo.
+  if (process.env.EULEN_DEPOSITS_ENABLED !== 'true') {
+    return res.status(503).json({ ok: false, error: 'deposits_paused' })
+  }
+
   const amountCents = parseAmountToCents(req.body?.amount)
   if (amountCents === null || amountCents < MIN_CENTS || amountCents > MAX_CENTS) {
     return res.status(400).json({ ok: false, error: 'invalid_amount' })

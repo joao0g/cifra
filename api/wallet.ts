@@ -36,6 +36,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       walletId: user.wallet_id,
       balanceCents: Number(w[0]?.balance_cents ?? 0),
       hasPii: typeof u[0]?.tax_number_enc === 'string',
+      // Flags operacionais (kill-switch): o front desabilita as ações e explica.
+      depositsEnabled: process.env.EULEN_DEPOSITS_ENABLED === 'true',
+      withdrawalsEnabled: process.env.EULEN_WITHDRAW_ENABLED === 'true',
       deposits: deps.map((d: any) => ({
         id: String(d.id),
         qrId: typeof d.qr_id === 'string' ? d.qr_id : null,

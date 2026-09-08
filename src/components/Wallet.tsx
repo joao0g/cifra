@@ -29,6 +29,8 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
   const [txns, setTxns] = useState<Txn[]>([])
   const [hasPii, setHasPii] = useState(false)
   const [walletId, setWalletId] = useState('')
+  const [depositsEnabled, setDepositsEnabled] = useState(true)
+  const [withdrawalsEnabled, setWithdrawalsEnabled] = useState(false)
   const [syncState, setSyncState] = useState<'loading' | 'ok' | 'offline'>('loading')
   const tokenRef = useRef(token)
   const pinRef = useRef(pin)
@@ -47,10 +49,12 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
       setTxns(mapped)
       setHasPii(w.hasPii)
       setWalletId(w.walletId)
+      setDepositsEnabled(w.depositsEnabled)
+      setWithdrawalsEnabled(w.withdrawalsEnabled)
       setSyncState('ok')
       const p = pinRef.current
       if (p) {
-        await saveSnapshot(p, { walletId: w.walletId, balanceCents: w.balanceCents, hasPii: w.hasPii, txns: mapped, ts: Date.now() })
+        await saveSnapshot(p, { walletId: w.walletId, balanceCents: w.balanceCents, hasPii: w.hasPii, depositsEnabled: w.depositsEnabled, withdrawalsEnabled: w.withdrawalsEnabled, txns: mapped, ts: Date.now() })
       }
     }
     const t = tokenRef.current
@@ -90,6 +94,8 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
           setTxns(snap.txns)
           setHasPii(snap.hasPii)
           setWalletId(snap.walletId)
+          setDepositsEnabled(snap.depositsEnabled !== false)
+          setWithdrawalsEnabled(snap.withdrawalsEnabled === true)
         }
       }
       if (!dead) await refresh()
@@ -171,6 +177,11 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
           Sincronização indisponível — toque para tentar de novo.
         </button>
       )}
+      {(!depositsEnabled || !withdrawalsEnabled) && (
+        <p className="dep-min" role="status">
+          Rede DePix pausada pela operadora — {(!depositsEnabled && !withdrawalsEnabled) ? 'depósitos e saques' : !depositsEnabled ? 'depósitos' : 'saques'} temporariamente indisponíveis. Seu saldo está intacto.
+        </p>
+      )}
       <div className="wallet__balance-card">
         <div className="wallet__balance-head">
           <p className="wallet__label">Saldo total{walletId !== '' ? ` · ${walletId}` : ''}</p>
@@ -211,21 +222,21 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
         </p>
 
         <div className="wallet__actions">
-          <button className="wallet__tile wallet__tile--send" type="button" onClick={() => setShowSend(true)}>
+          <button className="wallet__tile wallet__tile--send" type="button" onClick={() => setShowSend(true)} disabled={!withdrawalsEnabled}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="7" y1="17" x2="17" y2="7" />
               <polyline points="10 7 17 7 17 14" />
             </svg>
             Enviar
           </button>
-          <button className="wallet__tile wallet__tile--add" type="button" aria-label="Depositar" onClick={() => setShowDeposit(true)}>
+          <button className="wallet__tile wallet__tile--add" type="button" aria-label="Depositar" onClick={() => setShowDeposit(true)} disabled={!depositsEnabled}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden="true">
               <line x1="12" y1="4" x2="12" y2="20" />
               <line x1="4" y1="12" x2="20" y2="12" />
             </svg>
             Depositar
           </button>
-          <button className="wallet__tile wallet__tile--withdraw" type="button" aria-label="Sacar" onClick={() => setShowWithdraw(true)}>
+          <button className="wallet__tile wallet__tile--withdraw" type="button" aria-label="Sacar" onClick={() => setShowWithdraw(true)} disabled={!withdrawalsEnabled}>
             <svg viewBox="19 19 62 62" fill="currentColor" aria-hidden="true">
               <path d="M80,38.8a18.69,18.69,0,0,0-5.22-13.58c-5-5-12.73-6.46-21.31-4.12l-1.15.34A3.19,3.19,0,0,0,50,24.08a3,3,0,0,0,1.12,2.64,2.89,2.89,0,0,0,2.73.52c7-2.21,13.05-1.41,16.68,2.22A12.84,12.84,0,0,1,74,38.8c0,6.09-3,13.41-8.21,20.08L64,61.16V51a3,3,0,0,0-1-2.22A3,3,0,0,0,61,48h-.3A3.12,3.12,0,0,0,58,51.17V63a7,7,0,0,0,7,7H77a3,3,0,0,0,3-3.3A3.12,3.12,0,0,0,76.83,64H69.42l1.25-1.61C76.69,54.63,80,46.25,80,38.8Z" />
               <path d="M20,61.2a18.69,18.69,0,0,0,5.22,13.58c5,5,12.73,6.46,21.31,4.12q.72-.2,1.44-.43a3,3,0,0,0,2-3.49,2.81,2.81,0,0,0-1.34-1.85,3.4,3.4,0,0,0-2.72-.29C39,75,33,74.12,29.46,70.54A12.84,12.84,0,0,1,26,61.2c0-6.09,3-13.41,8.21-20.08L36,38.84V49a3,3,0,0,0,3.3,3A3.12,3.12,0,0,0,42,48.83V37a7,7,0,0,0-7-7H23.17A3.12,3.12,0,0,0,20,32.7,3,3,0,0,0,23,36h7.58l-1.25,1.61C23.31,45.37,20,53.75,20,61.2Z" />
