@@ -15,6 +15,7 @@ type PinSetupProps = {
   /* Textos das fases de confirmação (criação usa o padrão). */
   workingLabel?: string
   doneLabel?: string
+  mode?: 'create' | 'unlock'
 }
 
 /**
@@ -24,7 +25,7 @@ type PinSetupProps = {
  * Só o botão executa o efeito preparando → carteira pronta. PIN só em
  * memória, sem biometria.
  */
-export default function PinSetup({ onBack, onDone, title = 'Crie seu PIN', sub = 'Insira 4 dígitos. Eles serão usados para a sua autenticação.', ctaLabel = 'Acessar', notice = null, onInput, expectedPin = null, errorText = 'PIN incorreto. Tente de novo.', workingLabel = 'Preparando…', doneLabel = 'Carteira pronta' }: PinSetupProps) {
+export default function PinSetup({ onBack, onDone, title = 'Crie seu PIN', sub = 'Insira 4 dígitos. Eles serão usados para a sua autenticação.', ctaLabel = 'Acessar', notice = null, onInput, expectedPin = null, errorText = 'PIN incorreto. Tente de novo.', workingLabel = 'Preparando…', doneLabel = 'Carteira pronta', mode = 'create' }: PinSetupProps) {
   const [pin, setPin] = useState('')
   const [phase, setPhase] = useState<'idle' | 'working' | 'done' | 'leaving'>('idle')
   const [errTick, setErrTick] = useState(0)
@@ -81,6 +82,10 @@ export default function PinSetup({ onBack, onDone, title = 'Crie seu PIN', sub =
       return
     }
     setPhase('working')
+    if (mode === 'unlock') {
+      flow.current.push(window.setTimeout(() => onDone(pin), 280))
+      return
+    }
     flow.current.push(window.setTimeout(() => setPhase('done'), 4000))
     flow.current.push(window.setTimeout(() => setPhase('leaving'), 5300))
     flow.current.push(window.setTimeout(() => onDone(pin), 5780))

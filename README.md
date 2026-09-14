@@ -21,7 +21,7 @@ public/sw.js               cache do shell (registra só em build)
 public/icons/              icon-192/512, maskable-512
 public/apple-touch-icon.png  ícone da tela de início do iOS (arte com glow)
 src/main.tsx               bootstrap + registro do service worker
-src/App.tsx                fluxo: loader -> welcome (?splash/?welcome/?recover p/ testes)
+src/App.tsx                fluxo: loader -> instalação/boas-vindas -> carteira
 src/components/LiquidLogo.tsx  loader: a marca enchida pela onda, fade out e recomeco
 src/components/Welcome.tsx boas-vindas: titulo "Rastro zero. Cifras altas." + pills na base ("Comecar" cheio, "Recuperar carteira existente" de vidro fosco), glifo gigante ao fundo
 src/components/Recover.tsx recuperacao: 12 palavras Cifra, processadas neste aparelho

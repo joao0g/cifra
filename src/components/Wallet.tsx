@@ -115,19 +115,12 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
   }, [refresh])
 
   const balance = (balanceCents ?? 0) / 100
-  const allowTest = import.meta.env.DEV
-  const [showDeposit, setShowDeposit] = useState(
-    () => allowTest && new URLSearchParams(window.location.search).has('deposit'),
-  )
-  const [showWithdraw, setShowWithdraw] = useState(
-    () => allowTest && new URLSearchParams(window.location.search).has('withdraw'),
-  )
+  const [showDeposit, setShowDeposit] = useState(false)
+  const [showWithdraw, setShowWithdraw] = useState(false)
   const [view, setView] = useState<'home' | 'settings' | 'help' | 'txns' | 'receipt'>(initialView)
   const [selected, setSelected] = useState<Txn | null>(null)
   const [returnTo, setReturnTo] = useState<'home' | 'txns'>('home')
-  /* Prévia do estado vazio: ?wallet&empty só em DEV, para teste. */
-  const previewEmpty = allowTest && new URLSearchParams(window.location.search).has('empty')
-  const recent = previewEmpty ? [] : txns
+  const recent = txns
 
   const openReceipt = (t: Txn, from: 'home' | 'txns') => {
     setSelected(t)

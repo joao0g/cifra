@@ -1,5 +1,5 @@
 """Drives the REAL trigger paths through the real UI on the dev server:
-deposit (6s mock credit -> RollBalance -> deposito), send drag confirm
+deposit (backend credit -> RollBalance -> deposito), send drag confirm
 -> enviar, withdraw drag confirm -> enviar, plus the off-toggle silence
 path. Spy records every HTMLAudioElement.play with muted/src/element id.
 Usage: python scripts/verify-sounds-media.py [base_url] [scratch_dir]"""
@@ -75,7 +75,7 @@ with sync_playwright() as p:
     pg.on("console", lambda m: errors.append(f"console-{m.type}: {m.text[:200]}") if m.type == "error" else None)
     pg.goto(f"{BASE}/?wallet", wait_until="networkidle")
 
-    # DEPOSIT (real 6s mock credit + RollBalance effect)
+    # DEPOSIT (real backend credit + RollBalance effect)
     pg.locator('button[aria-label="Depositar"]').click()
     digits(pg, "10000")
     pg.locator(".send-docfield").first.click()

@@ -134,7 +134,7 @@ injeta automaticamente se a env `CRON_SECRET` existir).
   Create/Recover, re-login silencioso em 401, logout revoga + limpa tudo.
 - **Sync** (`src/lib/sync.ts` + `GET /api/wallet`): pull ao abrir, após cada ação,
   a cada 30s e ao voltar à tela. Servidor sempre vence (saldo + extrato reais;
-  mock local removido). Snapshot cifrado com o PIN (PBKDF2 100k → AES-GCM)
+  snapshot local cifrado com o PIN (PBKDF2 100k → AES-GCM)
   abre instantâneo até offline — payload sem palavras, sem token, sem PII.
 - **Depósito real**: nome+CPF só na 1ª vez (`hasPii`), QR verdadeiro renderizado
   do `qrCopyPaste`, polling de `/api/deposit-status` até aprovar (±15 min) ou expirar.

@@ -1,4 +1,4 @@
-"""Verifica a barreira de instalacao (URL pura): tela, modal e regressao (?wallet)."""
+"""Verifica a barreira de instalação e o modal de instruções."""
 import os
 import sys
 from playwright.sync_api import sync_playwright

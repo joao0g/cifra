@@ -3,16 +3,14 @@ import Create from './components/Create'
 import InstallGate from './components/InstallGate'
 import LiquidLogo from './components/LiquidLogo'
 import Recover from './components/Recover'
-import Unlock from './components/Unlock'
+import PinSetup from './components/PinSetup'
 import Wallet from './components/Wallet'
 import Welcome from './components/Welcome'
 import { bumpUnlockTries, hasStoredSession, loadLegacySession, loadSessionEncrypted, loginWithWords, logoutEverywhere, persistSession, reencryptSecrets, resetUnlockTries } from './lib/auth'
 import { loadSoundsEnabled, saveSoundsEnabled, preloadSounds, unlockAudio } from './lib/sounds'
 
-// Fluxo: um ciclo do loader (3.8s) e a welcome entra por cima. Hooks de teste
-// (?splash ?welcome ?recover ?create ?wallet ?deposit ?settings ?help ?txns)
-// só existem em DEV. Fora do PWA instalado o app nem abre: só a tela de
-// instalação (os hooks de teste passam direto pela barreira).
+// Fluxo: um ciclo do loader (3.8s) e a tela de boas-vindas entra por cima.
+// Fora do PWA instalado o app mostra somente a tela de instalação.
 function isPwa(): boolean {
   if (window.matchMedia('(display-mode: standalone)').matches) return true
   if (window.matchMedia('(display-mode: fullscreen)').matches) return true
@@ -20,19 +18,7 @@ function isPwa(): boolean {
   return (window.navigator as unknown as { standalone?: boolean }).standalone === true
 }
 export default function App() {
-  const params = new URLSearchParams(window.location.search)
-  const allowTest = import.meta.env.DEV
-  const holdSplash = allowTest && params.has('splash')
-  const skipSplash = allowTest && params.has('welcome')
-  const openRecover = allowTest && params.has('recover')
-  const openCreate = allowTest && params.has('create')
-  const openWallet = allowTest && params.has('wallet')
-  const openSettings = allowTest && params.has('settings')
-  const openHelp = allowTest && params.has('help')
-  const openTxns = allowTest && params.has('txns')
-  const openDeposit = allowTest && params.has('deposit')
-  const skipAll = skipSplash || openRecover || openCreate || openWallet || openSettings || openHelp || openTxns || openDeposit
-  const [ready, setReady] = useState(skipAll)
+  const [ready, setReady] = useState(false)
   // Tema principal: escuro. As telas de boas-vindas/recuperar/criar já são
   // pretas; o atributo pinta carteira + configurações (escuro ou claro).
   const [theme, setTheme] = useState<'claro' | 'escuro'>('escuro')
@@ -43,9 +29,8 @@ export default function App() {
     saveSoundsEnabled(on)
   }
   // Frase e PIN da carteira ativa, só em memória: nunca saem deste aparelho.
-  // ?pin=1234 só em DEV, para testar a troca de PIN nas configurações.
   const [phrase, setPhrase] = useState<string[] | null>(null)
-  const [pin, setPin] = useState<string | null>(() => (allowTest ? params.get('pin') : null))
+  const [pin, setPin] = useState<string | null>(null)
   // Sessão do backend (token opaco, só em memória). Na abertura, quem já tem
   // conta cai em 'unlock' (PIN); quem não tem, em 'welcome'.
   const [session, setSession] = useState<{ token: string; walletId: string } | null>(null)
@@ -144,7 +129,7 @@ export default function App() {
     setScreen('welcome')
   }
   const [screen, setScreen] = useState<'welcome' | 'recover' | 'create' | 'wallet' | 'unlock'>(
-    openRecover ? 'recover' : openCreate ? 'create' : openWallet || openSettings || openHelp || openTxns || openDeposit ? 'wallet' : hasStoredSession() ? 'unlock' : 'welcome',
+    hasStoredSession() ? 'unlock' : 'welcome',
   )
   /* Barreira do PWA: some sozinha ao instalar (appinstalled) ou ao abrir
      pelo ícone da tela de início. */
@@ -162,10 +147,9 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (holdSplash || skipAll) return
     const t = setTimeout(() => setReady(true), 3900)
     return () => clearTimeout(t)
-  }, [holdSplash, skipAll])
+  }, [])
 
   useEffect(() => {
     preloadSounds()
@@ -190,9 +174,8 @@ export default function App() {
     if (scheme) scheme.setAttribute('content', theme === 'escuro' ? 'dark' : 'light')
   }, [theme])
 
-  /* Em produção ou DEV, aba do navegador = só instalação. Os hooks de
-     teste passam direto para não travar as suítes. */
-  const showGate = !inPwa && !skipAll && !holdSplash
+  /* Em uma aba do navegador, a instalação é obrigatória antes de abrir a carteira. */
+  const showGate = !inPwa
   if (showGate) {
     return (
       <div className="theme-root" data-theme="escuro">
@@ -216,10 +199,17 @@ export default function App() {
         />
       )}
       {ready && screen === 'unlock' && (
-        <Unlock
+        <PinSetup
           key={unlockTick}
+          mode="unlock"
+          title="Acesse sua carteira"
+          sub="Insira seu PIN de 4 dígitos para continuar."
+          ctaLabel="Acessar"
+          workingLabel="Acessando…"
+          doneLabel="Carteira aberta"
           notice={unlockLeft === null ? null : unlockLeft > 3 ? 'PIN incorreto.' : `PIN incorreto. Restam ${unlockLeft}.`}
           onDone={(entered) => { unlockWithPin(entered) }}
+          onBack={() => setScreen('welcome')}
         />
       )}
       {ready && screen === 'recover' && (
@@ -228,7 +218,7 @@ export default function App() {
       {ready && screen === 'create' && (
         <Create onDone={(w, p) => { enterWithWords(w, p) }} onBack={() => setScreen('welcome')} />
       )}
-      {ready && screen === 'wallet' && <Wallet initialView={openTxns ? 'txns' : openHelp ? 'help' : openSettings ? 'settings' : 'home'} phrase={phrase} pin={pin} onPinChange={(next) => { changePin(next) }} theme={theme} onTheme={setTheme} sounds={sounds} onSounds={changeSounds} onDelete={() => { leaveAll() }} token={session?.token ?? null} relogin={relogin} />}
+      {ready && screen === 'wallet' && <Wallet initialView="home" phrase={phrase} pin={pin} onPinChange={(next) => { changePin(next) }} theme={theme} onTheme={setTheme} sounds={sounds} onSounds={changeSounds} onDelete={() => { leaveAll() }} token={session?.token ?? null} relogin={relogin} />}
     </div>
   )
 }
