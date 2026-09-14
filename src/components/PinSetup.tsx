@@ -16,6 +16,7 @@ type PinSetupProps = {
   workingLabel?: string
   doneLabel?: string
   mode?: 'create' | 'unlock'
+  errorTick?: number
 }
 
 /**
@@ -25,11 +26,19 @@ type PinSetupProps = {
  * Só o botão executa o efeito preparando → carteira pronta. PIN só em
  * memória, sem biometria.
  */
-export default function PinSetup({ onBack, onDone, title = 'Crie seu PIN', sub = 'Insira 4 dígitos. Eles serão usados para a sua autenticação.', ctaLabel = 'Acessar', notice = null, onInput, expectedPin = null, errorText = 'PIN incorreto. Tente de novo.', workingLabel = 'Preparando…', doneLabel = 'Carteira pronta', mode = 'create' }: PinSetupProps) {
+export default function PinSetup({ onBack, onDone, title = 'Crie seu PIN', sub = 'Insira 4 dígitos. Eles serão usados para a sua autenticação.', ctaLabel = 'Acessar', notice = null, onInput, expectedPin = null, errorText = 'PIN incorreto. Tente de novo.', workingLabel = 'Preparando…', doneLabel = 'Carteira pronta', mode = 'create', errorTick = 0 }: PinSetupProps) {
   const [pin, setPin] = useState('')
   const [phase, setPhase] = useState<'idle' | 'working' | 'done' | 'leaving'>('idle')
-  const [errTick, setErrTick] = useState(0)
-  const [showErr, setShowErr] = useState(false)
+  const [errTick, setErrTick] = useState(errorTick)
+  const [showErr, setShowErr] = useState(errorTick > 0)
+
+  useEffect(() => {
+    if (errorTick <= errTick) return
+    setErrTick(errorTick)
+    setShowErr(true)
+    const t = window.setTimeout(() => setShowErr(false), 2400)
+    return () => window.clearTimeout(t)
+  }, [errorTick, errTick])
   const flow = useRef<number[]>([])
   const ctaRef = useRef<HTMLButtonElement | null>(null)
   const lastW = useRef(0)

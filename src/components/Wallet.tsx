@@ -28,7 +28,6 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
   const [balanceCents, setBalanceCents] = useState<number | null>(null)
   const [txns, setTxns] = useState<Txn[]>([])
   const [hasPii, setHasPii] = useState(false)
-  const [walletId, setWalletId] = useState('')
   const [depositsEnabled, setDepositsEnabled] = useState(true)
   const [withdrawalsEnabled, setWithdrawalsEnabled] = useState(false)
   const [syncState, setSyncState] = useState<'loading' | 'ok' | 'offline'>('loading')
@@ -48,7 +47,6 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
       setBalanceCents(w.balanceCents)
       setTxns(mapped)
       setHasPii(w.hasPii)
-      setWalletId(w.walletId)
       setDepositsEnabled(w.depositsEnabled)
       setWithdrawalsEnabled(w.withdrawalsEnabled)
       setSyncState('ok')
@@ -93,7 +91,6 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
           setBalanceCents(snap.balanceCents)
           setTxns(snap.txns)
           setHasPii(snap.hasPii)
-          setWalletId(snap.walletId)
           setDepositsEnabled(snap.depositsEnabled !== false)
           setWithdrawalsEnabled(snap.withdrawalsEnabled === true)
         }
@@ -170,14 +167,9 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
           Sincronização indisponível — toque para tentar de novo.
         </button>
       )}
-      {(!depositsEnabled || !withdrawalsEnabled) && (
-        <p className="dep-min" role="status">
-          Rede DePix pausada pela operadora — {(!depositsEnabled && !withdrawalsEnabled) ? 'depósitos e saques' : !depositsEnabled ? 'depósitos' : 'saques'} temporariamente indisponíveis. Seu saldo está intacto.
-        </p>
-      )}
       <div className="wallet__balance-card">
         <div className="wallet__balance-head">
-          <p className="wallet__label">Saldo total{walletId !== '' ? ` · ${walletId}` : ''}</p>
+          <p className="wallet__label">Saldo total</p>
           <button
             className="wallet__eye"
             type="button"
@@ -241,6 +233,11 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
 
       <div className="wallet__section">
         <h2 className="wallet__section-title">Transações recentes</h2>
+        {recent.length > 0 && (
+          <button className="wallet__see-all" type="button" onClick={() => setView('txns')}>
+            Ver tudo
+          </button>
+        )}
       </div>
 
       <div className="wallet__txns-card">
@@ -266,9 +263,6 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
         ))}
         </ul>
         )}
-        <button className="wallet__see-all" type="button" onClick={() => setView('txns')} disabled={recent.length === 0}>
-          Ver tudo
-        </button>
       </div>
       {showSend && (
         <Send

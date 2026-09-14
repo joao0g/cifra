@@ -207,6 +207,7 @@ export default function App() {
           ctaLabel="Acessar"
           workingLabel="Acessando…"
           doneLabel="Carteira aberta"
+          errorTick={unlockTick}
           notice={unlockLeft === null ? null : unlockLeft > 3 ? 'PIN incorreto.' : `PIN incorreto. Restam ${unlockLeft}.`}
           onDone={(entered) => { unlockWithPin(entered) }}
           onBack={() => setScreen('welcome')}

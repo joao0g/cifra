@@ -1661,6 +1661,11 @@ textarea {
   color: #fff;
 }
 
+.theme-root[data-theme="escuro"] .wallet__section .wallet__see-all {
+  background: transparent;
+  color: #b79cff;
+}
+
 .theme-root[data-theme="escuro"] .txns-list {
   background: #141416;
   border: 0;
@@ -1839,6 +1844,21 @@ textarea {
   align-items: center;
   justify-content: space-between;
   margin-top: 4px;
+}
+
+.wallet__section .wallet__see-all {
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6d43d8;
+}
+
+.wallet__section .wallet__see-all:active {
+  opacity: 0.7;
 }
 
 .wallet__section-title {
