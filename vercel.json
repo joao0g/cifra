@@ -4,7 +4,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "crons": [
-    { "path": "/api/reconcile", "schedule": "*/5 * * * *" }
+    { "path": "/api/reconcile", "schedule": "0 3 * * *" }
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
