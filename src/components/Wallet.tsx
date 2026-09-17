@@ -233,11 +233,9 @@ export default function Wallet({ initialView = 'home', phrase = null, pin = null
 
       <div className="wallet__section">
         <h2 className="wallet__section-title">Transações recentes</h2>
-        {recent.length > 0 && (
-          <button className="wallet__see-all" type="button" onClick={() => setView('txns')}>
-            Ver tudo
-          </button>
-        )}
+        <button className="wallet__see-all" type="button" disabled={recent.length === 0} onClick={() => setView('txns')}>
+          Ver tudo
+        </button>
       </div>
 
       <div className="wallet__txns-card">

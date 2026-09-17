@@ -6,6 +6,7 @@
 import { getPublicKeyAsync, signAsync } from '@noble/ed25519'
 import { pbkdf2 } from '@noble/hashes/pbkdf2.js'
 import { sha512 } from '@noble/hashes/sha2.js'
+import { hasVault, loadVault, sealVault, VAULT_KEY } from './vault'
 import { validateMnemonic } from './bip39'
 
 const DOMAIN = 'cifra-ed25519-v1'
@@ -135,7 +136,7 @@ function deleteLegacySession(): void {
 /** Há segredo de sessão neste aparelho (v2 cifrada ou v1 legada)? */
 export function hasStoredSession(): boolean {
   try {
-    return localStorage.getItem(SESSION2_KEY) !== null || localStorage.getItem(SESSION_KEY) !== null
+    return hasVault() || localStorage.getItem(SESSION2_KEY) !== null || localStorage.getItem(SESSION_KEY) !== null
   } catch {
     return false
   }
@@ -204,7 +205,7 @@ export function bumpUnlockTries(): number {
 
 /** Apaga TODOS os segredos do aparelho (sair + anti-bruteforce). Palavras nunca ficam aqui. */
 export function wipeDeviceSecrets(): void {
-  for (const k of [SESSION_KEY, SESSION2_KEY, SNAP_KEY, TRIES_KEY]) {
+  for (const k of [SESSION_KEY, SESSION2_KEY, SNAP_KEY, TRIES_KEY, VAULT_KEY]) {
     try {
       localStorage.removeItem(k)
     } catch {
@@ -216,24 +217,33 @@ export function wipeDeviceSecrets(): void {
 /** Troca o PIN dos segredos guardados (sessão v2 + snapshot). Devolve false se
     o PIN atual não abrir algo (nada é alterado pela metade). */
 export async function reencryptSecrets(oldPin: string, newPin: string): Promise<boolean> {
-  let sBlob: string | null = null
-  let snap: string | null = null
-  try {
-    sBlob = localStorage.getItem(SESSION2_KEY)
-    snap = localStorage.getItem(SNAP_KEY)
-  } catch {
-    return false
-  }
   if (oldPin === newPin) return true
+  const pending: Array<{ key: string; old: string; next: string }> = []
   try {
-    if (sBlob) {
-      const s = await decryptSnapshot<Session>(oldPin, sBlob)
-      if (!s) return false
-      await persistSession(newPin, s)
+    const vault = localStorage.getItem(VAULT_KEY)
+    if (vault) {
+      const words = await loadVault(oldPin)
+      if (!words) return false
+      pending.push({ key: VAULT_KEY, old: vault, next: await sealVault(newPin, words) })
     }
-    if (snap) {
-      const o = await decryptSnapshot<unknown>(oldPin, snap)
-      if (o !== null && o !== undefined) saveSnapshotBlob(await encryptSnapshot(newPin, o))
+    for (const key of [SESSION2_KEY, SNAP_KEY]) {
+      const old = localStorage.getItem(key)
+      if (!old) continue
+      const value = await decryptSnapshot<unknown>(oldPin, old)
+      if (value == null) return false
+      pending.push({ key, old, next: await encryptSnapshot(newPin, value) })
+    }
+    // Validar e cifrar tudo antes da primeira gravação. Cofre é o último commit.
+    pending.sort((a, b) => Number(a.key === VAULT_KEY) - Number(b.key === VAULT_KEY))
+    const committed: typeof pending = []
+    try {
+      for (const item of pending) {
+        localStorage.setItem(item.key, item.next)
+        committed.push(item)
+      }
+    } catch {
+      for (const item of committed.reverse()) localStorage.setItem(item.key, item.old)
+      return false
     }
     return true
   } catch {

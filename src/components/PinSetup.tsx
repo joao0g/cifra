@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 type PinSetupProps = {
   onBack: () => void
-  onDone: (pin: string) => void
+  onDone: (pin: string) => void | Promise<void>
   title?: string
   sub?: string
   ctaLabel?: string
@@ -39,6 +39,12 @@ export default function PinSetup({ onBack, onDone, title = 'Crie seu PIN', sub =
     const t = window.setTimeout(() => setShowErr(false), 2400)
     return () => window.clearTimeout(t)
   }, [errorTick, errTick])
+  const [operationError, setOperationError] = useState<string | null>(null)
+  useEffect(() => {
+    if (!showErr) return
+    const t = window.setTimeout(() => setShowErr(false), 2400)
+    return () => window.clearTimeout(t)
+  }, [showErr, errTick])
   const flow = useRef<number[]>([])
   const ctaRef = useRef<HTMLButtonElement | null>(null)
   const lastW = useRef(0)
@@ -90,20 +96,21 @@ export default function PinSetup({ onBack, onDone, title = 'Crie seu PIN', sub =
       flow.current.push(window.setTimeout(() => setShowErr(false), 2400))
       return
     }
+    setOperationError(null)
     setPhase('working')
-    if (mode === 'unlock') {
-      flow.current.push(window.setTimeout(() => onDone(pin), 280))
-      return
-    }
-    flow.current.push(window.setTimeout(() => setPhase('done'), 4000))
-    flow.current.push(window.setTimeout(() => setPhase('leaving'), 5300))
-    flow.current.push(window.setTimeout(() => onDone(pin), 5780))
+    // A conclusão depende da operação real, nunca de uma animação temporizada.
+    void Promise.resolve().then(() => onDone(pin)).then(() => {
+      setPhase('idle')
+    }).catch(() => {
+      setPhase('idle')
+      setOperationError('Não foi possível acessar ou salvar os dados neste aparelho. Mantenha suas 12 palavras guardadas e tente novamente.')
+    })
   }
 
   const busy = phase !== 'idle'
 
   return (
-    <section className={`pin${phase === 'leaving' ? ' is-leaving' : ''}`} aria-label={title}>
+    <section data-mode={mode} className={`pin${phase === 'leaving' ? ' is-leaving' : ''}`} aria-label={title}>
       <div className="pin__card">
         <div className="pin__top">
           <button className="pin__back" type="button" onClick={onBack} aria-label="Voltar" disabled={busy}>
@@ -129,6 +136,7 @@ export default function PinSetup({ onBack, onDone, title = 'Crie seu PIN', sub =
           ))}
         </div>
 
+        {operationError && <p className="pin__error" role="alert">{operationError}</p>}
         {showErr ? (
           <p key={`e${errTick}`} className="pin__error is-live" role="alert">
             {errorText}

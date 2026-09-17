@@ -7,6 +7,7 @@ import PinSetup from './components/PinSetup'
 import Wallet from './components/Wallet'
 import Welcome from './components/Welcome'
 import { bumpUnlockTries, hasStoredSession, loadLegacySession, loadSessionEncrypted, loginWithWords, logoutEverywhere, persistSession, reencryptSecrets, resetUnlockTries } from './lib/auth'
+import { hasVault, loadVault, persistVault } from './lib/vault'
 import { loadSoundsEnabled, saveSoundsEnabled, preloadSounds, unlockAudio } from './lib/sounds'
 
 // Fluxo: um ciclo do loader (3.8s) e a tela de boas-vindas entra por cima.
@@ -18,7 +19,9 @@ function isPwa(): boolean {
   return (window.navigator as unknown as { standalone?: boolean }).standalone === true
 }
 export default function App() {
-  const [ready, setReady] = useState(false)
+  // Quem já tem carteira neste aparelho cai direto no PIN, sem esperar o
+  // ciclo do loader. O splash de 3,9s fica só para a primeira tela (welcome).
+  const [ready, setReady] = useState(() => hasStoredSession())
   // Tema principal: escuro. As telas de boas-vindas/recuperar/criar já são
   // pretas; o atributo pinta carteira + configurações (escuro ou claro).
   const [theme, setTheme] = useState<'claro' | 'escuro'>('escuro')
@@ -41,41 +44,72 @@ export default function App() {
   phraseRef.current = phrase
   pinRef.current = pin
 
-  /* Re-login silencioso com as palavras em memória (sessão expirada). */
-  const relogin = useCallback(async (): Promise<string | null> => {
+  const reloginFlight = useRef<Promise<string | null> | null>(null)
+  const authEpoch = useRef(0)
+  /* Login em segundo plano, deduplicado. Logout/troca de carteira invalida retornos. */
+  const relogin = useCallback((): Promise<string | null> => {
+    if (reloginFlight.current) return reloginFlight.current
     const w = phraseRef.current
     const p = pinRef.current
-    if (!w || !p) return null
-    try {
-      const r = await loginWithWords(w)
-      await persistSession(p, { token: r.token, walletId: r.walletId, savedAt: Date.now() })
-      setSession({ token: r.token, walletId: r.walletId })
-      return r.token
-    } catch {
-      return null
-    }
+    if (!w || !p) return Promise.resolve(null)
+    const epoch = authEpoch.current
+    const task = (async () => {
+      try {
+        const r = await loginWithWords(w)
+        if (epoch !== authEpoch.current) return null
+        setSession({ token: r.token, walletId: r.walletId })
+        // Com cofre, token fica só em memória; renovar não exige nova gravação.
+        return r.token
+      } catch {
+        return null
+      }
+    })()
+    reloginFlight.current = task
+    void task.finally(() => {
+      if (reloginFlight.current === task) reloginFlight.current = null
+    })
+    return task
   }, [])
 
   const enterWithWords = async (w: string[], p: string) => {
+    // Só avança depois da gravação durável: sem ela mostramos erro no PIN.
+    await persistVault(p, w)
+    authEpoch.current += 1
+    reloginFlight.current = null
+    phraseRef.current = w
+    pinRef.current = p
     setPhrase(w)
     setPin(p)
-    try {
-      const r = await loginWithWords(w)
-      try {
-        await persistSession(p, { token: r.token, walletId: r.walletId, savedAt: Date.now() })
-      } catch {
-        /* sem armazenamento: sessão vive só em memória nesta abertura */
-      }
-      setSession({ token: r.token, walletId: r.walletId })
-    } catch {
-      /* sem servidor: entra offline, o banner da carteira oferece retry */
-    }
+    setSession(null)
     setScreen('wallet')
+    void relogin()
   }
 
   /* Desbloqueio com PIN (volta ao app). v2 cifrada; v1 legada migra uma vez.
      10 erros = apaga tudo do aparelho, só volta com as palavras. */
   const unlockWithPin = async (entered: string) => {
+    if (hasVault()) {
+      const words = await loadVault(entered)
+      if (words) {
+        resetUnlockTries()
+        setUnlockLeft(null)
+        phraseRef.current = words
+        pinRef.current = entered
+        setPhrase(words)
+        setPin(entered)
+        setScreen('wallet')
+        void relogin()
+        return
+      }
+      // Não aceitar sessão antiga como fallback quando existe cofre.
+      const left = bumpUnlockTries()
+      if (left <= 0) setScreen('welcome')
+      else {
+        setUnlockLeft(left)
+        setUnlockTick((t) => t + 1)
+      }
+      return
+    }
     const s2 = await loadSessionEncrypted(entered)
     if (s2) {
       resetUnlockTries()
@@ -111,17 +145,18 @@ export default function App() {
   /* Troca de PIN (Configurações): recifra sessão + snapshot antes de trocar. */
   const changePin = async (next: string) => {
     const cur = pinRef.current
-    if (cur && cur !== next) {
-      try {
-        await reencryptSecrets(cur, next)
-      } catch {
-        /* falhou: mantém segredos antigos, snapshot rebaixa para re-pull */
-      }
+    if (cur && cur !== next && !await reencryptSecrets(cur, next)) {
+      throw new Error('pin_change_failed')
     }
+    pinRef.current = next
     setPin(next)
   }
 
   const leaveAll = async () => {
+    authEpoch.current += 1
+    reloginFlight.current = null
+    phraseRef.current = null
+    pinRef.current = null
     await logoutEverywhere()
     setPhrase(null)
     setPin(null)
@@ -147,6 +182,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (ready) return undefined
     const t = setTimeout(() => setReady(true), 3900)
     return () => clearTimeout(t)
   }, [])
@@ -209,15 +245,15 @@ export default function App() {
           doneLabel="Carteira aberta"
           errorTick={unlockTick}
           notice={unlockLeft === null ? null : unlockLeft > 3 ? 'PIN incorreto.' : `PIN incorreto. Restam ${unlockLeft}.`}
-          onDone={(entered) => { unlockWithPin(entered) }}
+          onDone={unlockWithPin}
           onBack={() => setScreen('welcome')}
         />
       )}
       {ready && screen === 'recover' && (
-        <Recover onCancel={() => setScreen('welcome')} onDone={(w, p) => { enterWithWords(w, p) }} />
+        <Recover onCancel={() => setScreen('welcome')} onDone={enterWithWords} />
       )}
       {ready && screen === 'create' && (
-        <Create onDone={(w, p) => { enterWithWords(w, p) }} onBack={() => setScreen('welcome')} />
+        <Create onDone={enterWithWords} onBack={() => setScreen('welcome')} />
       )}
       {ready && screen === 'wallet' && <Wallet initialView="home" phrase={phrase} pin={pin} onPinChange={(next) => { changePin(next) }} theme={theme} onTheme={setTheme} sounds={sounds} onSounds={changeSounds} onDelete={() => { leaveAll() }} token={session?.token ?? null} relogin={relogin} />}
     </div>
